@@ -1,0 +1,189 @@
+{
+  "info": {
+    "name": "FoodRescue S1 API",
+    "description": "Complete API collection for testing S1: Map-Based Allocation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Check if backend is running and database is connected"
+      }
+    },
+    {
+      "name": "Get All Available Donations",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/donations/available",
+          "host": ["{{base_url}}"],
+          "path": ["api", "donations", "available"]
+        },
+        "description": "Fetch all donations with status = AVAILABLE"
+      }
+    },
+    {
+      "name": "Get Map Markers",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/map/markers",
+          "host": ["{{base_url}}"],
+          "path": ["api", "map", "markers"]
+        },
+        "description": "Optimized endpoint for map marker data"
+      }
+    },
+    {
+      "name": "Get Donation by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/donations/1",
+          "host": ["{{base_url}}"],
+          "path": ["api", "donations", "1"]
+        },
+        "description": "Get specific donation details"
+      }
+    },
+    {
+      "name": "Create New Donation - Vegetarian",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"donor_name\": \"Green Garden Restaurant\",\n  \"donor_phone\": \"+919876543220\",\n  \"food_type\": \"VEG\",\n  \"quantity_kg\": 18.5,\n  \"description\": \"Fresh salads and vegetable curry\",\n  \"latitude\": 13.0650,\n  \"longitude\": 80.2450,\n  \"address\": \"45 MG Road, Chennai, Tamil Nadu 600034\",\n  \"expires_at\": \"2026-01-25T22:00:00\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/donations",
+          "host": ["{{base_url}}"],
+          "path": ["api", "donations"]
+        },
+        "description": "Create a new vegetarian donation. This will trigger WebSocket broadcast."
+      }
+    },
+    {
+      "name": "Create New Donation - Non-Veg",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"donor_name\": \"Spicy Chicken Corner\",\n  \"donor_phone\": \"+919876543221\",\n  \"food_type\": \"NON_VEG\",\n  \"quantity_kg\": 12.0,\n  \"description\": \"Grilled chicken and rice\",\n  \"latitude\": 13.0300,\n  \"longitude\": 80.2600,\n  \"address\": \"78 Beach Road, Chennai, Tamil Nadu 600001\",\n  \"expires_at\": \"2026-01-25T21:30:00\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/donations",
+          "host": ["{{base_url}}"],
+          "path": ["api", "donations"]
+        },
+        "description": "Create a non-vegetarian donation"
+      }
+    },
+    {
+      "name": "Create Urgent Donation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"donor_name\": \"Quick Bites Cafe\",\n  \"donor_phone\": \"+919876543222\",\n  \"food_type\": \"VEG\",\n  \"quantity_kg\": 8.0,\n  \"description\": \"Sandwiches - must be picked up within 1 hour!\",\n  \"latitude\": 13.0400,\n  \"longitude\": 80.2300,\n  \"address\": \"22 Park Street, Chennai, Tamil Nadu 600028\",\n  \"expires_at\": \"2026-01-25T19:00:00\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/donations",
+          "host": ["{{base_url}}"],
+          "path": ["api", "donations"]
+        },
+        "description": "Create an urgent donation (expires in < 2 hours)"
+      }
+    },
+    {
+      "name": "Update Donation Status to ASSIGNED",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/donations/1/status?new_status=ASSIGNED",
+          "host": ["{{base_url}}"],
+          "path": ["api", "donations", "1", "status"],
+          "query": [
+            {
+              "key": "new_status",
+              "value": "ASSIGNED"
+            }
+          ]
+        },
+        "description": "Update donation status. This will trigger WebSocket broadcast."
+      }
+    },
+    {
+      "name": "Update Donation Status to IN_TRANSIT",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/donations/1/status?new_status=IN_TRANSIT",
+          "host": ["{{base_url}}"],
+          "path": ["api", "donations", "1", "status"],
+          "query": [
+            {
+              "key": "new_status",
+              "value": "IN_TRANSIT"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update Donation Status to DELIVERED",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/donations/1/status?new_status=DELIVERED",
+          "host": ["{{base_url}}"],
+          "path": ["api", "donations", "1", "status"],
+          "query": [
+            {
+              "key": "new_status",
+              "value": "DELIVERED"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ]
+}
