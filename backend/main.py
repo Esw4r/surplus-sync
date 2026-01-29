@@ -19,7 +19,7 @@ import enum
 # DATABASE CONFIGURATION
 # ============================================================================
 
-DATABASE_URL = "postgresql://foodrescue_user:1115@localhost:5432/foodrescue_db"
+DATABASE_URL = "postgresql://postgres:surplusSync@12345@db.bwrwszeftkiwbybolzrh.supabase.co:5432/postgres"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
