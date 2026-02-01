@@ -19,7 +19,7 @@ import enum
 # DATABASE CONFIGURATION
 # ============================================================================
 
-DATABASE_URL = "postgresql://foodrescue_user:1115@localhost:5432/foodrescue_db"
+DATABASE_URL = "postgresql://postgres:surplusSync%4012345@db.bwrwszeftkiwbybolzrh.supabase.co:5432/postgres"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -284,6 +284,13 @@ def get_all_donations(
     donations = db.query(Donation).offset(skip).limit(limit).all()
     return donations
 
+@app.delete("/api/donations/cleanup")
+def cleanup_expired_donations(db: Session = Depends(get_db)):
+    """Deletes all donations that have passed their expiry time"""
+    now = datetime.utcnow()
+    deleted_count = db.query(Donation).filter(Donation.expires_at < now).delete()
+    db.commit()
+    return {"message": f"Successfully deleted {deleted_count} expired donations."}
 
 @app.get("/api/donations/available", response_model=List[DonationResponse])
 def get_available_donations(db: Session = Depends(get_db)):

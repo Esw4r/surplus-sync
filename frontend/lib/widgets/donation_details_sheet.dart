@@ -23,6 +23,7 @@ class DonationDetailsSheet extends StatelessWidget {
         initialChildSize: 0.6,
         minChildSize: 0.4,
         maxChildSize: 0.9,
+        expand: false, // Prevents the sheet from snapping to full screen immediately
         builder: (context, scrollController) {
           return SingleChildScrollView(
             controller: scrollController,
@@ -70,7 +71,7 @@ class DonationDetailsSheet extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.warning, color: Colors.white, size: 16),
-                              SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               Text(
                                 'URGENT',
                                 style: TextStyle(
@@ -180,50 +181,33 @@ class DonationDetailsSheet extends StatelessWidget {
                     ),
                   ),
 
-                  // Action buttons
+                  // Action Button
                   const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            // TODO: Implement directions
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Directions feature coming in S2!'),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.directions),
-                          label: const Text('Directions'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // TODO: Implement volunteer assignment (S12)
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Volunteer assignment coming in S12!'),
                           ),
+                        );
+                      },
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Assign to Volunteer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        elevation: 2,
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            // TODO: Implement volunteer assignment
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Volunteer assignment coming in S12!'),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.person_add),
-                          label: const Text('Assign'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade700,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
@@ -267,6 +251,7 @@ class DonationDetailsSheet extends StatelessWidget {
         style: const TextStyle(color: Colors.white),
       ),
       backgroundColor: color,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
     );
   }
 
