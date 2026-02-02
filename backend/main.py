@@ -198,6 +198,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register auth router
+from auth import router as auth_router
+app.include_router(auth_router)
+
 
 # ============================================================================
 # DEPENDENCY
