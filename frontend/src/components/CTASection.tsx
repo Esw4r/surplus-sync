@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function CTASection() {
   return (
     <section className="relative py-24 px-4 md:px-10 z-10 reveal">
@@ -12,12 +14,16 @@ export default function CTASection() {
           there&apos;s a place for you in the Surplus network.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6 relative z-10">
-          <button className="bg-primary hover:bg-orange-400 text-slate-900 px-8 py-4 rounded-xl text-lg font-bold transition-all shadow-[0_0_20px_rgba(251,146,60,0.3)] hover:shadow-[0_0_40px_rgba(251,146,60,0.6)] hover:-translate-y-1 w-full sm:w-auto">
-            Join as Partner
-          </button>
-          <button className="glass-card hover:bg-white/10 text-white px-8 py-4 rounded-xl text-lg font-bold transition-all w-full sm:w-auto border border-white/20 hover:border-white/40 hover:-translate-y-1">
-            Become a Volunteer
-          </button>
+          <Link href="/login" className="w-full sm:w-auto">
+            <button className="bg-primary hover:bg-orange-400 text-slate-900 px-8 py-4 rounded-xl text-lg font-bold transition-all shadow-[0_0_20px_rgba(251,146,60,0.3)] hover:shadow-[0_0_40px_rgba(251,146,60,0.6)] hover:-translate-y-1 w-full">
+              Join as Partner
+            </button>
+          </Link>
+          <Link href="/register?role=volunteer" className="w-full sm:w-auto">
+            <button className="glass-card hover:bg-white/10 text-white px-8 py-4 rounded-xl text-lg font-bold transition-all w-full border border-white/20 hover:border-white/40 hover:-translate-y-1">
+              Become a Volunteer
+            </button>
+          </Link>
         </div>
       </div>
     </section>

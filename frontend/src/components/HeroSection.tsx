@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 
 export default function HeroSection() {
@@ -78,18 +79,22 @@ export default function HeroSection() {
           data, driven by compassion. Join the galaxy of change-makers.
         </p>
         <div className="flex flex-wrap gap-4 mt-2 relative z-30 reveal delay-300">
-          <button className="flex items-center justify-center gap-2 bg-primary hover:bg-orange-400 text-slate-900 h-14 px-8 rounded-xl text-base font-bold transition-all shadow-[0_0_20px_rgba(251,146,60,0.3)] hover:scale-105 hover:shadow-[0_0_40px_rgba(251,146,60,0.6)] cursor-pointer">
-            <span>Start Rescuing</span>
-            <span className="material-symbols-outlined text-xl">
-              arrow_forward
-            </span>
-          </button>
-          <button className="flex items-center justify-center gap-2 glass-card hover:bg-white/10 text-white h-14 px-8 rounded-xl text-base font-bold transition-all hover:scale-105 group border-white/10 cursor-pointer">
-            <span className="material-symbols-outlined text-primary group-hover:text-white transition-colors">
-              play_circle
-            </span>
-            <span>See The Network</span>
-          </button>
+          <Link href="/register">
+            <button className="flex items-center justify-center gap-2 bg-primary hover:bg-orange-400 text-slate-900 h-14 px-8 rounded-xl text-base font-bold transition-all shadow-[0_0_20px_rgba(251,146,60,0.3)] hover:scale-105 hover:shadow-[0_0_40px_rgba(251,146,60,0.6)] cursor-pointer">
+              <span>Start Rescuing</span>
+              <span className="material-symbols-outlined text-xl">
+                arrow_forward
+              </span>
+            </button>
+          </Link>
+          <Link href="#ecosystem">
+            <button className="flex items-center justify-center gap-2 glass-card hover:bg-white/10 text-white h-14 px-8 rounded-xl text-base font-bold transition-all hover:scale-105 group border-white/10 cursor-pointer">
+              <span className="material-symbols-outlined text-primary group-hover:text-white transition-colors">
+                play_circle
+              </span>
+              <span>See The Network</span>
+            </button>
+          </Link>
         </div>
 
         <div

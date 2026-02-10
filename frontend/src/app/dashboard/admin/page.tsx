@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { apiService } from "@/lib/api-service";
-import { useWebSocket } from "@/lib/websocket-service";
-import { useToast } from "@/lib/toast-context";
+import { apiService } from "../../../lib/api-service";
+import { useWebSocket } from "../../../lib/websocket-service";
+import { useToast } from "../../../lib/toast-context";
 
 interface User {
     id: string;
@@ -19,23 +19,33 @@ interface NGO {
     id: string;
     name: string;
     email: string;
-    status: "pending" | "approved" | "rejected";
+    status: "pending" | "approved" | "rejected" | "PENDING" | "VERIFIED" | "REJECTED";
+    created_at: string;
+}
+
+interface Donation {
+    id: string;
+    donor_name: string;
+    food_type: string;
+    quantity_kg: number;
+    status: string;
+    pickup_token?: string;
+    delivery_token?: string;
     created_at: string;
 }
 
 interface Stats {
-    total_users: number;
-    total_donations: number;
-    total_rescued_kg: number;
-    active_volunteers: number;
-    pending_ngos: number;
-    co2_prevented: number;
+    users: { total: number; volunteers: number; ngos: number; donors: number };
+    volunteers: { online: number; busy: number; offline: number };
+    ngos: { pending: number; approved: number; rejected: number };
+    tasks: { total: number; pending: number; assigned: number; in_progress: number; completed: number; cancelled: number; this_week: number };
 }
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<"overview" | "users" | "ngos" | "donations">("overview");
     const [users, setUsers] = useState<User[]>([]);
     const [ngos, setNgos] = useState<NGO[]>([]);
+    const [donations, setDonations] = useState<Donation[]>([]);
     const [stats, setStats] = useState<Stats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const { addToast } = useToast();
@@ -57,15 +67,20 @@ export default function AdminDashboard() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [usersRes, ngosRes, statsRes] = await Promise.all([
+            const [usersRes, ngosRes, statsRes, donationsRes] = await Promise.all([
                 apiService.getAdminUsers(),
                 apiService.getAdminNgos(),
                 apiService.getAdminStats(),
+                apiService.getAdminDonations(),
             ]);
 
             if (usersRes.data) setUsers(usersRes.data);
-            if (ngosRes.data) setNgos(ngosRes.data);
+            if (ngosRes.data) {
+                console.log("DEBUG NGOS:", ngosRes.data);
+                setNgos(ngosRes.data);
+            }
             if (statsRes.data) setStats(statsRes.data);
+            if (donationsRes.data) setDonations(donationsRes.data);
         } catch (error) {
             console.error("Error fetching admin data:", error);
         } finally {
@@ -132,8 +147,8 @@ export default function AdminDashboard() {
                             key={item.id}
                             onClick={() => setActiveTab(item.id as any)}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === item.id
-                                    ? "bg-red-500/20 text-red-400"
-                                    : "text-slate-400 hover:bg-white/5 hover:text-white"
+                                ? "bg-red-500/20 text-red-400"
+                                : "text-slate-400 hover:bg-white/5 hover:text-white"
                                 }`}
                         >
                             <span className="material-symbols-outlined">{item.icon}</span>
@@ -161,12 +176,12 @@ export default function AdminDashboard() {
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
                             {[
-                                { label: "Total Users", value: stats?.total_users || 0, icon: "group", color: "blue" },
-                                { label: "Donations", value: stats?.total_donations || 0, icon: "inventory_2", color: "green" },
-                                { label: "Rescued (kg)", value: stats?.total_rescued_kg || 0, icon: "scale", color: "orange" },
-                                { label: "Active Volunteers", value: stats?.active_volunteers || 0, icon: "local_shipping", color: "purple" },
-                                { label: "Pending NGOs", value: stats?.pending_ngos || 0, icon: "pending", color: "yellow" },
-                                { label: "CO₂ Prevented (T)", value: stats?.co2_prevented || 0, icon: "eco", color: "teal" },
+                                { label: "Total Users", value: stats?.users.total || 0, icon: "group", color: "blue" },
+                                { label: "Donations", value: stats?.tasks.total || 0, icon: "inventory_2", color: "green" },
+                                { label: "Rescued (kg)", value: (stats?.tasks.completed || 0) * 5, icon: "scale", color: "orange" }, // Estimated 5kg per task
+                                { label: "Active Volunteers", value: (stats?.volunteers.online || 0) + (stats?.volunteers.busy || 0), icon: "local_shipping", color: "purple" },
+                                { label: "Pending NGOs", value: stats?.ngos.pending || 0, icon: "pending", color: "yellow" },
+                                { label: "CO₂ Prevented (kg)", value: ((stats?.tasks.completed || 0) * 5 * 2.5).toFixed(1), icon: "eco", color: "teal" }, // Est 2.5kg CO2 per kg food
                             ].map((stat, i) => (
                                 <div key={i} className="glass-card p-4 relative">
                                     <div className="glass-highlight"></div>
@@ -188,7 +203,7 @@ export default function AdminDashboard() {
                                     Pending NGO Approvals
                                 </h2>
                                 <div className="space-y-3">
-                                    {ngos.filter(n => n.status === "pending").slice(0, 5).map((ngo) => (
+                                    {ngos.filter(n => n.status === "pending" || n.status === "PENDING").slice(0, 5).map((ngo) => (
                                         <div key={ngo.id} className="flex items-center justify-between p-3 bg-slate-800/30 rounded-xl">
                                             <div>
                                                 <p className="font-medium">{ngo.name}</p>
@@ -204,7 +219,7 @@ export default function AdminDashboard() {
                                             </div>
                                         </div>
                                     ))}
-                                    {ngos.filter(n => n.status === "pending").length === 0 && (
+                                    {ngos.filter(n => n.status === "pending" || n.status === "PENDING").length === 0 && (
                                         <p className="text-slate-400 text-center py-4">No pending approvals</p>
                                     )}
                                 </div>
@@ -271,9 +286,9 @@ export default function AdminDashboard() {
                                                 <td className="py-4 text-slate-400">{user.email}</td>
                                                 <td className="py-4">
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${user.role === "admin" ? "bg-red-500/20 text-red-400" :
-                                                            user.role === "ngo" ? "bg-purple-500/20 text-purple-400" :
-                                                                user.role === "volunteer" ? "bg-blue-500/20 text-blue-400" :
-                                                                    "bg-green-500/20 text-green-400"
+                                                        user.role === "ngo" ? "bg-purple-500/20 text-purple-400" :
+                                                            user.role === "volunteer" ? "bg-blue-500/20 text-blue-400" :
+                                                                "bg-green-500/20 text-green-400"
                                                         }`}>
                                                         {user.role}
                                                     </span>
@@ -315,13 +330,13 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${ngo.status === "approved" ? "bg-green-500/20 text-green-400" :
-                                                ngo.status === "rejected" ? "bg-red-500/20 text-red-400" :
-                                                    "bg-yellow-500/20 text-yellow-400"
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${(ngo.status?.toLowerCase() === "verified" || ngo.status?.toLowerCase() === "approved") ? "bg-green-500/20 text-green-400" :
+                                            (ngo.status?.toLowerCase() === "rejected") ? "bg-red-500/20 text-red-400" :
+                                                "bg-yellow-500/20 text-yellow-400"
                                             }`}>
                                             {ngo.status}
                                         </span>
-                                        {ngo.status === "pending" && (
+                                        {(ngo.status?.toLowerCase() === "pending") && (
                                             <div className="flex gap-2">
                                                 <button onClick={() => handleApproveNgo(ngo.id)} className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg text-sm font-medium transition-colors">
                                                     Approve
@@ -345,8 +360,81 @@ export default function AdminDashboard() {
                 {activeTab === "donations" && (
                     <div className="glass-card p-6 relative">
                         <div className="glass-highlight"></div>
-                        <h2 className="text-xl font-bold mb-6">All Donations</h2>
-                        <p className="text-slate-400 text-center py-12">Donation management coming soon...</p>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold">All Donations</h2>
+                            <span className="text-slate-400">{donations.length} total</span>
+                        </div>
+
+                        {isLoading ? (
+                            <div className="flex justify-center py-12">
+                                <div className="w-8 h-8 border-2 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="text-left text-slate-400 text-sm border-b border-white/10">
+                                            <th className="pb-3 font-medium">Donor</th>
+                                            <th className="pb-3 font-medium">Food Type</th>
+                                            <th className="pb-3 font-medium">Qty (kg)</th>
+                                            <th className="pb-3 font-medium">Status</th>
+                                            <th className="pb-3 font-medium">Tokens (P/D)</th>
+                                            <th className="pb-3 font-medium">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {donations.map((donation) => (
+                                            <tr key={donation.id} className="border-b border-white/5">
+                                                <td className="py-4 font-medium">{donation.donor_name || "Unknown"}</td>
+                                                <td className="py-4 text-slate-300">{donation.food_type}</td>
+                                                <td className="py-4 text-slate-300">{donation.quantity_kg}</td>
+                                                <td className="py-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${donation.status === "DELIVERED" ? "bg-green-500/20 text-green-400" :
+                                                        donation.status === "CANCELLED" ? "bg-red-500/20 text-red-400" :
+                                                            donation.status === "PENDING" ? "bg-yellow-500/20 text-yellow-400" :
+                                                                "bg-blue-500/20 text-blue-400"
+                                                        }`}>
+                                                        {donation.status}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 text-sm font-mono text-slate-400">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="w-4 inline-block text-slate-500">P:</span>
+                                                        <span className="text-white select-all">{donation.pickup_token?.substring(0, 8)}...</span>
+                                                        {donation.pickup_token && (
+                                                            <button
+                                                                onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${donation.pickup_token}`, '_blank', 'width=400,height=400')}
+                                                                className="text-xs bg-[#fb923c]/20 text-[#fb923c] px-2 py-0.5 rounded hover:bg-[#fb923c]/30"
+                                                            >
+                                                                QR
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-4 inline-block text-slate-500">D:</span>
+                                                        <span className="text-white select-all">{donation.delivery_token?.substring(0, 8)}...</span>
+                                                        {donation.delivery_token && (
+                                                            <button
+                                                                onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${donation.delivery_token}`, '_blank', 'width=400,height=400')}
+                                                                className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded hover:bg-blue-500/30"
+                                                            >
+                                                                QR
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 text-slate-400 text-sm">
+                                                    {new Date(donation.created_at).toLocaleDateString()}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        {donations.length === 0 && !isLoading && (
+                            <p className="text-center text-slate-400 py-12">No donations found.</p>
+                        )}
                     </div>
                 )}
             </main>

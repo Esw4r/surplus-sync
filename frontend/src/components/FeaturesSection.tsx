@@ -1,6 +1,6 @@
 export default function FeaturesSection() {
   return (
-    <section className="relative py-32 px-4 md:px-10 max-w-7xl mx-auto z-10">
+    <section id="features" className="relative py-32 px-4 md:px-10 max-w-7xl mx-auto z-10">
       <div className="text-center mb-16 relative">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[100px] bg-primary/10 blur-[60px] rounded-full pointer-events-none"></div>
         <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 reveal">

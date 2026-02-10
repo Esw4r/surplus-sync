@@ -3,8 +3,8 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { apiService } from "@/lib/api-service";
-import { useToast } from "@/lib/toast-context";
+import { apiService } from "../../lib/api-service";
+import { useToast } from "../../lib/toast-context";
 
 function RegisterForm() {
     const router = useRouter();

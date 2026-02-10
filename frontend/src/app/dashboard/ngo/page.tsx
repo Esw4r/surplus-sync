@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { apiService } from "@/lib/api-service";
-import { useWebSocket, WebSocketMessage } from "@/lib/websocket-service";
-import { useToast } from "@/lib/toast-context";
-import { useAuth } from "@/lib/auth-context";
+import { apiService } from "../../../lib/api-service";
+import { useWebSocket, WebSocketMessage } from "../../../lib/websocket-service";
+import { useToast } from "../../../lib/toast-context";
+import { useAuth } from "../../../lib/auth-context";
 
 interface Task {
     id: string;
