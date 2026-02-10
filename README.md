@@ -111,6 +111,10 @@ final/
 │       ├── spatial.py          # PostGIS spatial queries
 │       └── qr_generator.py     # QR token generation
 │
+├── nexd/                     # Next.js Web Dashboard (Admin/Dispatcher/NGO)
+│
+├── mobile/                   # Flutter Mobile App (Donor/Volunteer/NGO)
+│
 ├── database/
 │   └── schema.sql              # PostgreSQL schema with PostGIS
 │
@@ -392,6 +396,5 @@ Use SQL INSERT or Python script to import into unified database.
 
 ---
 
-**Status:** ✅ Backend Complete | ⏳ Frontend Integration Pending
-
-**Last Updated:** 2024
+**Status:** ✅ Backend Complete | ✅ Frontend Complete (Next.js) | ✅ Mobile App Complete (Flutter)
+**Last Updated:** 2026
