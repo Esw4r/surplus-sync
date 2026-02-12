@@ -129,6 +129,24 @@ class ApiService {
     return response.data;
   }
 
+  /// Update donor profile
+  Future<Map<String, dynamic>> updateDonorProfile({
+    String? organizationName,
+    String? address,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final Map<String, dynamic> data = {};
+    if (organizationName != null) data['organization_name'] = organizationName;
+    if (address != null) data['address'] = address;
+    if (latitude != null) data['latitude'] = latitude;
+    if (longitude != null) data['longitude'] = longitude;
+
+    final response = await _dio.patch('/donors/me', data: data);
+    return response.data;
+  }
+
+
   /// Create donation task
   Future<Map<String, dynamic>> createDonation({
     required double pickupLat,
@@ -180,6 +198,27 @@ class ApiService {
       'longitude': longitude,
       'capacity_kg': capacityKg,
     });
+    return response.data;
+  }
+
+  /// Update NGO profile
+  Future<Map<String, dynamic>> updateNgoProfile({
+    String? organizationName,
+    String? licenseNumber,
+    String? address,
+    double? latitude,
+    double? longitude,
+    int? capacityKg,
+  }) async {
+    final Map<String, dynamic> data = {};
+    if (organizationName != null) data['organization_name'] = organizationName;
+    if (licenseNumber != null) data['license_number'] = licenseNumber;
+    if (address != null) data['address'] = address;
+    if (latitude != null) data['latitude'] = latitude;
+    if (longitude != null) data['longitude'] = longitude;
+    if (capacityKg != null) data['capacity_kg'] = capacityKg;
+
+    final response = await _dio.patch('/ngos/me', data: data);
     return response.data;
   }
 

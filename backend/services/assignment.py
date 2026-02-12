@@ -4,9 +4,13 @@ from utils.spatial import find_nearby_volunteers, extract_coordinates, calculate
 from config import settings
 from datetime import datetime
 from typing import Optional
+from utils.socket_manager import socket_manager
+from utils.serialize import serialize_task
+import logging
 
+logger = logging.getLogger(__name__)
 
-def auto_assign_task(task_id: int, db: Session) -> Optional[Volunteer]:
+async def auto_assign_task(task_id: int, db: Session) -> Optional[Volunteer]:
     """
     Auto-assign task to nearest available volunteer.
     
@@ -75,11 +79,24 @@ def auto_assign_task(task_id: int, db: Session) -> Optional[Volunteer]:
     
     db.add(tracking_session)
     db.commit()
+    db.refresh(task)
+    
+    # Broadcast assignment
+    try:
+        await socket_manager.broadcast_task_update(task.id, {
+            "status": TaskStatus.ASSIGNED.value,
+            "volunteer_id": closest_volunteer.id,
+            "assigned_at": task.assigned_at.isoformat()
+        })
+        
+        await socket_manager.send_task_assignment(closest_volunteer.id, serialize_task(task))
+    except Exception as e:
+        logger.error(f"Error broadcasting assignment: {e}")
     
     return closest_volunteer
 
 
-def trigger_auto_assignment(db: Session) -> dict:
+async def trigger_auto_assignment(db: Session) -> dict:
     """
     Trigger auto-assignment for all pending tasks.
     
@@ -92,7 +109,7 @@ def trigger_auto_assignment(db: Session) -> dict:
     failed_count = 0
     
     for task in pending_tasks:
-        volunteer = auto_assign_task(task.id, db)
+        volunteer = await auto_assign_task(task.id, db)
         if volunteer:
             assigned_count += 1
         else:
@@ -105,7 +122,7 @@ def trigger_auto_assignment(db: Session) -> dict:
     }
 
 
-def reassign_task(task_id: int, db: Session) -> Optional[Volunteer]:
+async def reassign_task(task_id: int, db: Session) -> Optional[Volunteer]:
     """
     Reassign task to different volunteer (e.g., after cancellation).
     
@@ -116,21 +133,5 @@ def reassign_task(task_id: int, db: Session) -> Optional[Volunteer]:
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         return None
-    
-    # Clear current assignment
-    if task.volunteer_id:
-        old_volunteer = db.query(Volunteer).filter(Volunteer.id == task.volunteer_id).first()
-        if old_volunteer:
-            old_volunteer.status = VolunteerStatus.ONLINE
-            old_volunteer.current_task_id = None
-    
-    # Reset task status
-    task.status = TaskStatus.PENDING
-    task.volunteer_id = None
-    task.assigned_at = None
-    task.accepted_at = None
-    
-    db.commit()
-    
-    # Auto-assign to new volunteer
-    return auto_assign_task(task_id, db)
+        
+    return await auto_assign_task(task_id, db)

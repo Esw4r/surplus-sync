@@ -17,6 +17,7 @@ class NgoHomeScreen extends ConsumerStatefulWidget {
 class _NgoHomeScreenState extends ConsumerState<NgoHomeScreen> {
   int _currentIndex = 0;
   String _ngoName = 'Loading...';
+  String _verificationStatus = 'PENDING'; // Track verification status
   int _claimsCount = 0;
   final GlobalKey<MyClaimsScreenState> _myClaimsKey = GlobalKey<MyClaimsScreenState>();
 
@@ -68,6 +69,7 @@ class _NgoHomeScreenState extends ConsumerState<NgoHomeScreen> {
       if (mounted) {
         setState(() {
           _ngoName = ngoInfo['organization_name'] ?? 'NGO Dashboard';
+          _verificationStatus = (ngoInfo['verification_status'] ?? 'PENDING').toString().toUpperCase();
         });
       }
     } catch (e) {
@@ -95,6 +97,84 @@ class _NgoHomeScreenState extends ConsumerState<NgoHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show verification pending screen if NGO is not yet verified
+    if (_verificationStatus == 'PENDING' || _verificationStatus == 'REJECTED') {
+      final isRejected = _verificationStatus == 'REJECTED';
+      
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(_ngoName),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadNgoInfo,
+              tooltip: 'Check Status',
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () => _showLogoutDialog(),
+              tooltip: 'Logout',
+            ),
+          ],
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: isRejected ? Colors.red.shade100 : Colors.orange.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isRejected ? Icons.block : Icons.hourglass_empty,
+                    size: 50,
+                    color: isRejected ? Colors.red.shade700 : Colors.orange.shade700,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  isRejected ? 'Application Rejected' : 'Verification Pending',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  isRejected 
+                      ? 'Your NGO application has been rejected by the administrator. Please contact support for more information.'
+                      : 'Your NGO account is under review by the admin. You will be able to access all features once your account is verified.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                OutlinedButton.icon(
+                  onPressed: _loadNgoInfo,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Check Verification Status'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Column(

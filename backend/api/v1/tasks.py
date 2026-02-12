@@ -10,6 +10,7 @@ from schemas import TaskResponse, QRVerifyRequest
 from utils.auth import get_current_user
 from utils.serialize import serialize_task, serialize_list
 from services.assignment import trigger_auto_assignment, reassign_task
+from utils.socket_manager import socket_manager
 from datetime import datetime
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -114,6 +115,16 @@ async def assign_task(
     db.commit()
     db.refresh(task)
     
+    # Broadcast update
+    await socket_manager.broadcast_task_update(task.id, {
+        "status": TaskStatus.ASSIGNED.value,
+        "volunteer_id": volunteer.id,
+        "assigned_at": task.assigned_at.isoformat() if task.assigned_at else None
+    })
+    
+    # Notify volunteer
+    await socket_manager.send_task_assignment(volunteer.id, serialize_task(task))
+    
     return serialize_task(task)
 
 
@@ -207,6 +218,12 @@ async def verify_pickup(
     db.commit()
     db.refresh(task)
     
+    # Broadcast status update
+    await socket_manager.broadcast_task_update(task.id, {
+        "event": "task_updated",
+        **serialize_task(task)
+    })
+    
     return serialize_task(task)
 
 
@@ -272,6 +289,12 @@ async def verify_delivery(
     
     db.commit()
     db.refresh(task)
+    
+    # Broadcast status update
+    await socket_manager.broadcast_task_update(task.id, {
+        "event": "task_updated",
+        **serialize_task(task)
+    })
     
     return serialize_task(task)
 
@@ -364,7 +387,7 @@ async def trigger_auto_assign(
             detail="Only admins and dispatchers can trigger auto-assignment"
         )
     
-    result = trigger_auto_assignment(db)
+    result = await trigger_auto_assignment(db)
     return result
 
 
@@ -381,7 +404,7 @@ async def reassign_task_to_volunteer(
             detail="Only admins and dispatchers can reassign tasks"
         )
     
-    volunteer = reassign_task(task_id, db)
+    volunteer = await reassign_task(task_id, db)
     if not volunteer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

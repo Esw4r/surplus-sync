@@ -5,11 +5,11 @@ from typing import List, Dict
 from database import get_db
 from models import (
     Task, TaskStatus, Volunteer, VolunteerStatus, 
-    TrackingSession, User, UserRole, FoodType
+    TrackingSession, User, UserRole, FoodType, NGO, Donor
 )
 from schemas import TaskResponse, TaskAssignRequest
 from utils.auth import get_current_user
-from utils.serialize import serialize_task, serialize_list
+from utils.serialize import serialize_task, serialize_list, serialize_ngo, serialize_donor
 from utils.socket_manager import socket_manager
 from datetime import datetime, timedelta
 
@@ -31,6 +31,7 @@ async def get_dispatcher_tasks(
     db: Session = Depends(get_db)
 ):
     """Get all tasks for dispatcher view"""
+    print(f"[DISPATCHER_DEBUG] Accessing tasks for user: {current_user.email}, Role: {current_user.role}")
     verify_dispatcher_access(current_user)
     
     # Dispatchers see all tasks ordered by urgency/creation
@@ -40,6 +41,28 @@ async def get_dispatcher_tasks(
     ).all()
     
     return serialize_list(tasks, serialize_task)
+
+
+@router.get("/ngos")
+async def get_dispatcher_ngos(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all NGOs for map view"""
+    verify_dispatcher_access(current_user)
+    ngos = db.query(NGO).all()
+    return serialize_list(ngos, serialize_ngo)
+
+
+@router.get("/donors")
+async def get_dispatcher_donors(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all Donors for map view"""
+    verify_dispatcher_access(current_user)
+    donors = db.query(Donor).all()
+    return serialize_list(donors, serialize_donor)
 
 
 @router.post("/tasks/{task_id}/assign")

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../main.dart';
+import '../../services/location_service.dart';
 import 'create_donation_screen.dart';
 import 'donation_history_screen.dart';
 
@@ -15,6 +18,7 @@ class _DonorHomeScreenState extends ConsumerState<DonorHomeScreen> {
   int _currentIndex = 0;
   Map<String, dynamic>? _donorProfile;
   bool _isLoading = true;
+  final LocationService _locationService = LocationService();
 
   Key _refreshKey = UniqueKey();
 
@@ -50,6 +54,268 @@ class _DonorHomeScreenState extends ConsumerState<DonorHomeScreen> {
     await apiService.clearToken();
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
+  Future<void> _updateLocation() async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Location'),
+        content: const Text('Choose how to update your location:'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'gps'),
+            child: const Text('Use GPS'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'manual'),
+            child: const Text('Manual Entry'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == null) return;
+
+    if (choice == 'gps') {
+      await _updateLocationViaGPS();
+    } else if (choice == 'manual') {
+      await _showManualLocationDialog();
+    }
+  }
+
+  Future<void> _updateLocationViaGPS() async {
+    try {
+      final position = await _locationService.getCurrentPosition();
+      if (position != null) {
+        // Get address from coordinates using reverse geocoding
+        String address = 'Location: ${position.latitude}, ${position.longitude}';
+        try {
+          final placemarks = await placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+          );
+          if (placemarks.isNotEmpty) {
+            final place = placemarks.first;
+            address = '${place.street ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}'.replaceAll(', ,', ',').trim();
+            // Remove leading/trailing commas
+            if (address.startsWith(',')) address = address.substring(1).trim();
+            if (address.endsWith(',')) address = address.substring(0, address.length - 1).trim();
+          }
+        } catch (e) {
+          print('Reverse geocoding failed: $e');
+          // Continue with coordinate-based address
+        }
+
+        final apiService = ref.read(apiServiceProvider);
+        await apiService.updateDonorProfile(
+          latitude: position.latitude,
+          longitude: position.longitude,
+          address: address,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Location and address updated!\n$address'),
+              backgroundColor: const Color(0xFF4CAF50),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          _loadDonorProfile();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating location: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showManualLocationDialog() async {
+    final addressController = TextEditingController();
+    final latController = TextEditingController();
+    final lngController = TextEditingController();
+    bool useCoordinates = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Manual Location Entry'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Text('Use Coordinates:'),
+                  Switch(
+                    value: useCoordinates,
+                    onChanged: (value) {
+                      setState(() {
+                        useCoordinates = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (!useCoordinates)
+                TextField(
+                  controller: addressController,
+                  decoration: const InputDecoration(
+                    labelText: 'Address',
+                    hintText: 'Enter full address',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                )
+              else
+                Column(
+                  children: [
+                    TextField(
+                      controller: latController,
+                      decoration: const InputDecoration(
+                        labelText: 'Latitude',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: lngController,
+                      decoration: const InputDecoration(
+                        labelText: 'Longitude',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                if (useCoordinates) {
+                  await _updateLocationFromCoordinates(
+                    double.tryParse(latController.text),
+                    double.tryParse(lngController.text),
+                  );
+                } else {
+                  await _updateLocationFromAddress(addressController.text);
+                }
+              },
+              child: const Text('Update'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateLocationFromAddress(String address) async {
+    if (address.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter an address'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final locations = await locationFromAddress(address);
+      if (locations.isNotEmpty) {
+        final location = locations.first;
+        await _updateDonorLocationAPI(location.latitude, location.longitude, address);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not find location for address: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateLocationFromCoordinates(double? lat, double? lng) async {
+    if (lat == null || lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter valid coordinates'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final placemarks = await placemarkFromCoordinates(lat, lng);
+      String address = 'Location: $lat, $lng';
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        address = '${place.street}, ${place.locality}, ${place.country}';
+      }
+      await _updateDonorLocationAPI(lat, lng, address);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateDonorLocationAPI(double lat, double lng, String address) async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      await apiService.updateDonorProfile(
+        latitude: lat,
+        longitude: lng,
+        address: address,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location and address updated successfully!'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+        _loadDonorProfile();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating location: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -182,6 +448,60 @@ class _DonorHomeScreenState extends ConsumerState<DonorHomeScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+
+          // Current Address Section
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[850],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[700]!),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.location_on, color: Colors.blue[400], size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Current Address',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _donorProfile?['address'] ?? 'No address set - please update',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: (_donorProfile?['address'] == null) ? Colors.orange : Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Update Location Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _updateLocation,
+              icon: const Icon(Icons.location_on),
+              label: const Text('Update Location & Address'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2196F3),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 24),
 

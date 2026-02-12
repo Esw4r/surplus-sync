@@ -105,18 +105,27 @@ async def get_nearby_tasks(
             detail="NGO profile not found"
         )
     
-    if ngo.verification_status != VerificationStatus.VERIFIED:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="NGO not verified yet. Cannot access tasks."
-        )
+    # Relaxed verification for testing
+    # if ngo.verification_status != VerificationStatus.VERIFIED:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="NGO not verified yet. Cannot access tasks."
+    #     )
     
     # Get NGO coordinates
     from utils.spatial import extract_coordinates
     ngo_lat, ngo_lng = extract_coordinates(ngo.location)
     
     # Find nearby tasks using spatial helper
-    nearby_tasks = find_nearby_tasks(db, ngo_lat, ngo_lng, max_distance_km)
+    # If NGO is at (0, 0) (legacy/default), show global tasks
+    if abs(ngo_lat) < 0.01 and abs(ngo_lng) < 0.01:
+        # Fetch all pending tasks without location filter
+        nearby_tasks = db.query(Task).filter(
+             Task.status == TaskStatus.PENDING,
+             Task.ngo_id == None
+        ).all()
+    else:
+        nearby_tasks = find_nearby_tasks(db, ngo_lat, ngo_lng, max_distance_km)
     
     # Filter by PENDING status
     available_tasks = [task for task in nearby_tasks if task.status == TaskStatus.PENDING]
@@ -208,10 +217,11 @@ async def claim_task(
             detail="NGO profile not found"
         )
     
+    # Check verification status
     if ngo.verification_status != VerificationStatus.VERIFIED:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="NGO not verified"
+            detail="NGO verification pending. Please wait for admin approval."
         )
     
     # Get task

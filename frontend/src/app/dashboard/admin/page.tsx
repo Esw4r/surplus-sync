@@ -39,6 +39,7 @@ interface Stats {
     volunteers: { online: number; busy: number; offline: number };
     ngos: { pending: number; approved: number; rejected: number };
     tasks: { total: number; pending: number; assigned: number; in_progress: number; completed: number; cancelled: number; this_week: number };
+    impact?: { total_weight_kg: number; co2_saved_kg: number };
 }
 
 export default function AdminDashboard() {
@@ -50,8 +51,20 @@ export default function AdminDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const { addToast } = useToast();
 
+    // Filters
+    const [foodTypeFilter, setFoodTypeFilter] = useState<string>("ALL");
+    const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
     // Real-time updates
-    useWebSocket(["task_created", "task_completed", "volunteer_online"], (message) => {
+    useWebSocket([
+        "task_created",
+        "task_updated",
+        "task_assigned",
+        "task_completed",
+        "volunteer_online",
+        "donation_claimed",
+        "notification"
+    ], (message) => {
         addToast({
             type: "info",
             title: "Real-time Update",
@@ -119,6 +132,13 @@ export default function AdminDashboard() {
         apiService.logout();
     };
 
+    // Filtered donations
+    const filteredDonations = donations.filter(donation => {
+        const matchesType = foodTypeFilter === "ALL" || donation.food_type === foodTypeFilter;
+        const matchesStatus = statusFilter === "ALL" || donation.status === statusFilter;
+        return matchesType && matchesStatus;
+    });
+
     return (
         <div className="min-h-screen text-white">
             {/* Background */}
@@ -178,10 +198,10 @@ export default function AdminDashboard() {
                             {[
                                 { label: "Total Users", value: stats?.users.total || 0, icon: "group", color: "blue" },
                                 { label: "Donations", value: stats?.tasks.total || 0, icon: "inventory_2", color: "green" },
-                                { label: "Rescued (kg)", value: (stats?.tasks.completed || 0) * 5, icon: "scale", color: "orange" }, // Estimated 5kg per task
+                                { label: "Rescued (kg)", value: stats?.impact?.total_weight_kg || 0, icon: "scale", color: "orange" },
                                 { label: "Active Volunteers", value: (stats?.volunteers.online || 0) + (stats?.volunteers.busy || 0), icon: "local_shipping", color: "purple" },
                                 { label: "Pending NGOs", value: stats?.ngos.pending || 0, icon: "pending", color: "yellow" },
-                                { label: "CO₂ Prevented (kg)", value: ((stats?.tasks.completed || 0) * 5 * 2.5).toFixed(1), icon: "eco", color: "teal" }, // Est 2.5kg CO2 per kg food
+                                { label: "CO₂ Prevented (kg)", value: (stats?.impact?.co2_saved_kg || 0).toFixed(1), icon: "eco", color: "teal" },
                             ].map((stat, i) => (
                                 <div key={i} className="glass-card p-4 relative">
                                     <div className="glass-highlight"></div>
@@ -362,7 +382,32 @@ export default function AdminDashboard() {
                         <div className="glass-highlight"></div>
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold">All Donations</h2>
-                            <span className="text-slate-400">{donations.length} total</span>
+                            <div className="flex gap-3">
+                                <select
+                                    value={foodTypeFilter}
+                                    onChange={(e) => setFoodTypeFilter(e.target.value)}
+                                    className="bg-slate-800 border border-white/10 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#fb923c]"
+                                >
+                                    <option value="ALL">All Types</option>
+                                    <option value="VEG">Veg</option>
+                                    <option value="NON_VEG">Non-Veg</option>
+                                    <option value="VEGAN">Vegan</option>
+                                    <option value="MIXED">Mixed</option>
+                                </select>
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="bg-slate-800 border border-white/10 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#fb923c]"
+                                >
+                                    <option value="ALL">All Status</option>
+                                    <option value="PENDING">Pending</option>
+                                    <option value="ASSIGNED">Assigned</option>
+                                    <option value="IN_TRANSIT">In Transit</option>
+                                    <option value="DELIVERED">Delivered</option>
+                                    <option value="COMPLETED">Completed</option>
+                                    <option value="CANCELLED">Cancelled</option>
+                                </select>
+                            </div>
                         </div>
 
                         {isLoading ? (
@@ -383,7 +428,7 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {donations.map((donation) => (
+                                        {filteredDonations.map((donation) => (
                                             <tr key={donation.id} className="border-b border-white/5">
                                                 <td className="py-4 font-medium">{donation.donor_name || "Unknown"}</td>
                                                 <td className="py-4 text-slate-300">{donation.food_type}</td>
@@ -432,7 +477,7 @@ export default function AdminDashboard() {
                                 </table>
                             </div>
                         )}
-                        {donations.length === 0 && !isLoading && (
+                        {filteredDonations.length === 0 && !isLoading && (
                             <p className="text-center text-slate-400 py-12">No donations found.</p>
                         )}
                     </div>

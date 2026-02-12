@@ -10,6 +10,7 @@ from utils.qr_generator import generate_pickup_delivery_tokens
 from utils.serialize import serialize_donor, serialize_task, serialize_list
 from services.assignment import auto_assign_task
 from datetime import datetime
+from utils.socket_manager import socket_manager
 
 router = APIRouter(prefix="/donors", tags=["Donors"])
 
@@ -61,14 +62,28 @@ async def update_my_donor_profile(
     if donor_data.organization_name is not None:
         donor.organization_name = donor_data.organization_name
     if donor_data.address is not None:
+        print(f"[DONOR UPDATE] Updating address for {donor.organization_name}: '{donor_data.address}'")
         donor.address = donor_data.address
     
     if donor_data.latitude is not None and donor_data.longitude is not None:
+        print(f"[DONOR UPDATE] Updating location for {donor.organization_name}: ({donor_data.latitude}, {donor_data.longitude})")
         donor.location = create_point(donor_data.latitude, donor_data.longitude)
         
     db.commit()
     db.refresh(donor)
+    print(f"[DONOR UPDATE] After commit - address: '{donor.address}'")
     return serialize_donor(donor)
+
+
+@router.put("/profile")
+async def update_donor_profile(
+    donor_data: DonorUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update donor profile (alias for /me, used by mobile app)"""
+    return await update_my_donor_profile(donor_data, current_user, db)
+
 
 
 @router.get("/tasks")
@@ -133,8 +148,14 @@ async def create_donation_task(
     db.commit()
     db.refresh(new_task)
     
+    # Broadcast task creation
+    await socket_manager.broadcast_task_update(new_task.id, {
+        "event": "task_created", 
+        **serialize_task(new_task)
+    })
+    
     # Try auto-assignment
-    auto_assign_task(new_task.id, db)
+    await auto_assign_task(new_task.id, db)
     
     return serialize_task(new_task)
 

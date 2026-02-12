@@ -25,10 +25,20 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
   bool _isPickedUp = false;
   bool _isDelivered = false;
   bool _showScanner = false;
-  bool _isVerifying = false;
+  bool _isProcessingScan = false; // Prevent multiple scans
+  Map<String, dynamic>? _task;
+  
+  // Scanner controller
+  final MobileScannerController _scannerController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.normal,
+    facing: CameraFacing.back,
+    torchEnabled: false,
+    returnImage: false,
+  );
 
   late LatLng _pickupLocation;
   LatLng? _dropLocation;
+  bool _isVerifying = false;
 
   @override
   void initState() {
@@ -48,6 +58,16 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
         widget.task['drop_lat'].toDouble(),
         widget.task['drop_lng'].toDouble(),
       );
+    }
+    
+    // Initialize state based on task status (for resumed tasks)
+    final status = widget.task['status'];
+    if (['IN_TRANSIT', 'PICKED_UP'].contains(status)) {
+      _isPickedUp = true;
+    }
+    if (status == 'COMPLETED') {
+      _isPickedUp = true;
+      _isDelivered = true;
     }
   }
 
@@ -74,6 +94,7 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
   void dispose() {
     _locationTimer?.cancel();
     _mapController?.dispose();
+    _scannerController.dispose();
     super.dispose();
   }
 
@@ -117,12 +138,12 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
     setState(() => _showScanner = true);
   }
 
-  Future<void> _onQRDetected(String qrData) async {
-    if (_isVerifying) return;
+  Future<void> _onQRDetected(String qrToken) async {
+    if (_isProcessingScan) return;
     
     setState(() {
-      _showScanner = false;
-      _isVerifying = true;
+      _isProcessingScan = true;
+      _showScanner = false; // Close scanner immediately
     });
 
     try {
@@ -130,7 +151,7 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
       
       if (!_isPickedUp) {
         // Verify pickup
-        await apiService.verifyPickup(widget.task['id'], qrData);
+        await apiService.verifyPickup(widget.task['id'], qrToken);
         setState(() => _isPickedUp = true);
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -141,7 +162,7 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
         );
       } else {
         // Verify delivery
-        await apiService.verifyDelivery(widget.task['id'], qrData);
+        await apiService.verifyDelivery(widget.task['id'], qrToken);
         setState(() => _isDelivered = true);
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -165,7 +186,12 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
         ),
       );
     } finally {
-      setState(() => _isVerifying = false);
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+          _isProcessingScan = false;
+        });
+      }
     }
   }
 
@@ -181,11 +207,32 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
           ),
         ),
         body: MobileScanner(
+          controller: _scannerController,
           onDetect: (capture) {
             final barcode = capture.barcodes.firstOrNull;
             if (barcode?.rawValue != null) {
               _onQRDetected(barcode!.rawValue!);
             }
+          },
+          errorBuilder: (context, error, child) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error, color: Colors.red, size: 50),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Camera Error: ${error.errorCode}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() => _showScanner = false),
+                    child: const Text('Close Scanner'),
+                  ),
+                ],
+              ),
+            );
           },
         ),
       );

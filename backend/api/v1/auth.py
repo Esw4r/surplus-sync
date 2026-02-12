@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import timedelta
 from database import get_db
-from models import User, UserRole, Donor, Volunteer, NGO, VehicleType, VolunteerStatus
+from models import User, UserRole, Donor, Volunteer, NGO, VehicleType, VolunteerStatus, VerificationStatus
 from schemas import UserCreate, UserResponse, Token, LoginRequest
 from utils.auth import get_password_hash, verify_password, create_access_token, get_current_user
 from utils.qr_generator import generate_qr_token, generate_pickup_delivery_tokens
@@ -48,6 +49,12 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         is_active=True
     )
     
+    # Geocode address if provided
+    lat, lng = 0.0, 0.0
+    if user_data.address:
+        from utils.geocoding import geocode_address
+        lat, lng = await geocode_address(user_data.address)
+    
     try:
         db.add(new_user)
         db.flush() # Flush to get new_user.id
@@ -58,8 +65,8 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
              new_donor = Donor(
                  user_id=new_user.id,
                  organization_name=new_user.full_name, # Default to name
-                 address="Please update address",
-                 location=create_point(0.0, 0.0), # Default location
+                 address=user_data.address or "Please update address",
+                 location=create_point(lat, lng),
                  qr_token=pickup_token,
                  rating=5.0,
                  total_donations=0
@@ -85,12 +92,14 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
                  user_id=new_user.id,
                  organization_name=new_user.full_name,
                  license_number=f"PENDING-{clerk_id[:8]}", # Unique placeholder
-                 address="Please update address",
-                 location=create_point(0.0, 0.0),
+                 address=user_data.address or "Please update address",
+                 location=create_point(lat, lng),
                  capacity_kg=100,
                  current_stock_kg=0,
                  qr_token=pickup_token,
-                 rating=5.0
+                 rating=5.0,
+                 # Auto-verify if in dev mode or handle via admin
+                 verification_status=VerificationStatus.PENDING 
              )
              db.add(new_ngo)
 
@@ -122,7 +131,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             detail="Login endpoint disabled in Production. Use Clerk Auth."
         )
 
-    user = db.query(User).filter(User.email == form_data.username).first()
+    # Case-insensitive email check
+    user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username)).first()
     
     if not user:
         raise HTTPException(

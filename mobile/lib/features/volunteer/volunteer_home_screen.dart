@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../main.dart';
 import '../../services/location_service.dart';
 import 'route_screen.dart';
+import 'package:geocoding/geocoding.dart';
 
 class VolunteerHomeScreen extends ConsumerStatefulWidget {
   const VolunteerHomeScreen({super.key});
@@ -51,13 +52,11 @@ class _VolunteerHomeScreenState extends ConsumerState<VolunteerHomeScreen> {
   }
 
   Future<void> _toggleOnlineStatus() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final apiService = ref.read(apiServiceProvider);
-
-      if (_isOnline) {
-        // Going offline
+    if (_isOnline) {
+      // Going offline
+      setState(() => _isLoading = true);
+      try {
+        final apiService = ref.read(apiServiceProvider);
         await apiService.goOffline();
         _taskPollingTimer?.cancel();
         _locationUpdateTimer?.cancel();
@@ -66,52 +65,223 @@ class _VolunteerHomeScreenState extends ConsumerState<VolunteerHomeScreen> {
           _currentTask = null;
           _hasTask = false;
         });
-      } else {
-        // Going online - need location first
-        final position = await _locationService.getCurrentPosition();
-        if (position == null) {
-          throw Exception('Location not available');
-        }
+      } catch (e) {
+        _showError('Error going offline: $e');
+      } finally {
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
 
+    // Going Online - Ask for location source
+    final useGps = await _showLocationSourceDialog();
+    if (useGps == null) return; // Cancelled
+
+    setState(() => _isLoading = true);
+
+    try {
+      Position? position;
+      
+      if (useGps) {
+        position = await _locationService.getCurrentPosition();
+        if (position == null) throw Exception('Location not available');
+      } else {
+        position = await _showManualLocationDialog();
+      }
+
+      if (position != null) {
+        final apiService = ref.read(apiServiceProvider);
         await apiService.goOnline(position.latitude, position.longitude);
+        
         setState(() {
           _isOnline = true;
           _currentPosition = position;
         });
 
+        // Check for assigned tasks immediately
+        await _checkForTask();
         // Start polling for tasks
         _startTaskPolling();
-        _startLocationUpdates();
+        // Only start location updates if using GPS
+        if (useGps) _startLocationUpdates();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Error going online: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
+  Future<bool?> _showLocationSourceDialog() async {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Location Source'),
+        content: const Text('How would you like to set your location?'),
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.keyboard),
+            label: const Text('Manual Entry'),
+            onPressed: () => Navigator.pop(ctx, false),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.gps_fixed),
+            label: const Text('Use GPS'),
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<Position?> _showManualLocationDialog() async {
+    final addressController = TextEditingController();
+    final latController = TextEditingController();
+    final lngController = TextEditingController();
+    
+    return showDialog<Position>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enter Location'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: addressController,
+                decoration: const InputDecoration(
+                  labelText: 'Address (City, Street)',
+                  hintText: 'e.g. New York, NY',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('- OR -', style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: latController,
+                      decoration: const InputDecoration(labelText: 'Lat', border: OutlineInputBorder()),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: lngController,
+                      decoration: const InputDecoration(labelText: 'Lng', border: OutlineInputBorder()),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              try {
+                double lat, lng;
+                if (addressController.text.isNotEmpty) {
+                  // Geocode address
+                  final locations = await locationFromAddress(addressController.text);
+                  if (locations.isNotEmpty) {
+                    lat = locations.first.latitude;
+                    lng = locations.first.longitude;
+                  } else {
+                    throw Exception('Address not found');
+                  }
+                } else {
+                  lat = double.parse(latController.text);
+                  lng = double.parse(lngController.text);
+                }
+                
+                if (ctx.mounted) {
+                  Navigator.pop(ctx, Position(
+                    longitude: lng,
+                    latitude: lat,
+                    timestamp: DateTime.now(),
+                    accuracy: 0,
+                    altitude: 0,
+                    heading: 0,
+                    speed: 0,
+                    speedAccuracy: 0, 
+                    altitudeAccuracy: 0, 
+                    headingAccuracy: 0, 
+                    floor: 0,
+                    isMocked: true 
+                  ));
+                }
+              } catch (e) {
+                // Show error
+                if (ctx.mounted) {
+                   ScaffoldMessenger.of(ctx).showSnackBar(
+                     SnackBar(content: Text('Invalid location: $e'), backgroundColor: Colors.red),
+                   );
+                }
+              }
+            },
+            child: const Text('Set Location'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _checkForTask() async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final task = await apiService.getCurrentTask();
+      
+      if (task != null && mounted) {
+        setState(() {
+          _currentTask = task;
+          _hasTask = true;
+        });
+      } else if (mounted) {
+        setState(() {
+          _currentTask = null;
+          _hasTask = false;
+        });
+      }
+    } catch (e) {
+      // Ignore errors during check
+    }
+  }
+
+  Future<void> _manualRefresh() async {
+    setState(() => _isLoading = true);
+    await _checkForTask();
+    setState(() => _isLoading = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_hasTask ? 'Task found!' : 'No tasks available'),
+          backgroundColor: _hasTask ? Colors.green : Colors.grey,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
   void _startTaskPolling() {
     _taskPollingTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      if (!_isOnline || _hasTask) return;
-
-      try {
-        final apiService = ref.read(apiServiceProvider);
-        final task = await apiService.getCurrentTask();
-        
-        if (task != null && mounted) {
-          setState(() {
-            _currentTask = task;
-            _hasTask = true;
-          });
-        }
-      } catch (e) {
-        // Ignore errors during polling
-      }
+      if (!_isOnline) return;
+      // Always check — don't skip if _hasTask, in case task was updated
+      await _checkForTask();
     });
   }
 
@@ -140,20 +310,9 @@ class _VolunteerHomeScreenState extends ConsumerState<VolunteerHomeScreen> {
     try {
       final apiService = ref.read(apiServiceProvider);
       await apiService.acceptTask(_currentTask!['id']);
-
+      
       if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RouteScreen(task: _currentTask!),
-          ),
-        ).then((_) {
-          // Reset after returning from route
-          setState(() {
-            _currentTask = null;
-            _hasTask = false;
-          });
-        });
+        _resumeTask(); // Navigate after acceptance
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -163,6 +322,25 @@ class _VolunteerHomeScreenState extends ConsumerState<VolunteerHomeScreen> {
         ),
       );
     }
+  }
+
+  void _resumeTask() {
+    if (_currentTask == null) return;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RouteScreen(task: _currentTask!),
+      ),
+    ).then((_) {
+      // Reset after returning from route
+      setState(() {
+        _currentTask = null;
+        _hasTask = false;
+      });
+      // Immediately check again in case task isn't done
+      _checkForTask();
+    });
   }
 
   Future<void> _logout() async {
@@ -181,6 +359,12 @@ class _VolunteerHomeScreenState extends ConsumerState<VolunteerHomeScreen> {
       appBar: AppBar(
         title: const Text('Volunteer'),
         actions: [
+          if (_isOnline)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _isLoading ? null : _manualRefresh,
+              tooltip: 'Refresh tasks',
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
@@ -303,7 +487,9 @@ class _VolunteerHomeScreenState extends ConsumerState<VolunteerHomeScreen> {
               Icon(Icons.notifications_active, color: Colors.orange.shade700),
               const SizedBox(width: 8),
               Text(
-                'New Task Available!',
+                ['PICKED_UP', 'IN_TRANSIT'].contains(_currentTask!['status']) 
+                    ? 'Task In Progress' 
+                    : 'New Task Available!',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -320,18 +506,38 @@ class _VolunteerHomeScreenState extends ConsumerState<VolunteerHomeScreen> {
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _acceptTask,
-              icon: const Icon(Icons.check),
-              label: const Text('Accept Task'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
+            child: _buildActionButtons(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    final status = _currentTask!['status'];
+    final isResumable = ['PICKED_UP', 'IN_TRANSIT'].contains(status);
+
+    if (isResumable) {
+      return ElevatedButton.icon(
+        onPressed: _resumeTask,
+        icon: const Icon(Icons.navigation),
+        label: const Text('Resume Task'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+      );
+    }
+
+    return ElevatedButton.icon(
+      onPressed: _acceptTask,
+      icon: const Icon(Icons.check),
+      label: const Text('Accept Task'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF4CAF50),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 14),
       ),
     );
   }
@@ -369,6 +575,15 @@ class _VolunteerHomeScreenState extends ConsumerState<VolunteerHomeScreen> {
           Text(
             'Stay in the app to receive tasks',
             style: TextStyle(color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _isLoading ? null : _manualRefresh,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Check for Tasks'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF4CAF50),
+            ),
           ),
         ],
       ),

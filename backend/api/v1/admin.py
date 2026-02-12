@@ -80,7 +80,34 @@ async def approve_ngo(
     ngo.verification_status = VerificationStatus.VERIFIED
     ngo.verified_at = datetime.utcnow()
     db.commit()
+    db.refresh(ngo)
+    
+    # Broadcast NGO approval to admin dashboards
+    from utils.socket_manager import socket_manager
+    from utils.serialize import serialize_ngo
+    await socket_manager._broadcast_to_dispatchers({
+        "event": "ngo_approved",
+        "ngo": serialize_ngo(ngo)
+    })
+    
     return {"message": f"NGO {ngo.organization_name} approved"}
+
+
+@router.post("/ngos/{ngo_id}/reject")
+async def reject_ngo(
+    ngo_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Reject an NGO"""
+    ngo = db.query(NGO).filter(NGO.id == ngo_id).first()
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    ngo.verification_status = VerificationStatus.REJECTED
+    ngo.verified_at = None
+    db.commit()
+    return {"message": f"NGO {ngo.organization_name} rejected"}
 
 
 @router.get("/stats/overview")
@@ -141,8 +168,17 @@ async def get_system_overview(
     tasks_this_week = db.query(func.count(Task.id)).filter(
         Task.created_at >= week_ago
     ).scalar()
+
+    # Calculate Total Weight Rescued (kg) and CO2 Saved (kg)
+    # Sum quantity_kg for all DELIVERED or COMPLETED tasks
+    total_weight = db.query(func.sum(Task.quantity_kg)).filter(
+        Task.status.in_([TaskStatus.DELIVERED, TaskStatus.COMPLETED])
+    ).scalar() or 0.0
     
-    print(f"DEBUG STATS: Users={total_users}, NGOs={total_ngos}, PendingNGOs={ngos_pending}")
+    # CO2 saved factor: approx 2.5kg CO2e per kg of food waste prevented
+    co2_saved = float(total_weight) * 2.5
+    
+    print(f"DEBUG STATS: Users={total_users}, NGOs={total_ngos}, Weight={total_weight}, CO2={co2_saved}")
     
     return {
         "users": {
@@ -169,6 +205,10 @@ async def get_system_overview(
             "completed": tasks_completed,
             "cancelled": tasks_cancelled,
             "this_week": tasks_this_week
+        },
+        "impact": {
+            "total_weight_kg": float(total_weight),
+            "co2_saved_kg": co2_saved
         },
         "timestamp": datetime.utcnow().isoformat()
     }

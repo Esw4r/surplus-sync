@@ -10,12 +10,13 @@ function RegisterForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { addToast } = useToast();
-    const defaultRole = searchParams.get("role") || "donor";
+    const defaultRole = "ngo"; // Only NGO registration allowed on web
 
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         phone: "",
+        address: "",
         password: "",
         confirmPassword: "",
         role: defaultRole,
@@ -45,6 +46,7 @@ function RegisterForm() {
             phone: formData.phone,
             password: formData.password,
             role: formData.role,
+            address: formData.address,
         });
 
         if (result.error) {
@@ -59,8 +61,6 @@ function RegisterForm() {
     };
 
     const roles = [
-        { value: "donor", label: "Donor", icon: "store", desc: "Donate surplus food" },
-        { value: "volunteer", label: "Volunteer", icon: "local_shipping", desc: "Help with deliveries" },
         { value: "ngo", label: "NGO", icon: "volunteer_activism", desc: "Receive donations" },
     ];
 
@@ -83,8 +83,8 @@ function RegisterForm() {
                 <div className="glass-card p-8 relative">
                     <div className="glass-highlight"></div>
 
-                    <h1 className="text-2xl font-bold text-center mb-2">Join the Movement</h1>
-                    <p className="text-slate-400 text-center mb-8">Create your account to start rescuing food</p>
+                    <h1 className="text-2xl font-bold text-center mb-2">Partner Registration</h1>
+                    <p className="text-slate-400 text-center mb-8">Register your NGO to start receiving donations</p>
 
                     {error && (
                         <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-xl mb-6 text-sm">
@@ -93,37 +93,15 @@ function RegisterForm() {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        {/* Role Selection */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-3">I want to...</label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {roles.map((role) => (
-                                    <button
-                                        key={role.value}
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, role: role.value })}
-                                        className={`p-3 rounded-xl border transition-all text-center ${formData.role === role.value
-                                                ? "border-[#fb923c] bg-[#fb923c]/20 text-white"
-                                                : "border-white/10 bg-slate-800/30 text-slate-400 hover:border-white/20"
-                                            }`}
-                                    >
-                                        <span className={`material-symbols-outlined text-2xl mb-1 ${formData.role === role.value ? "text-[#fb923c]" : ""}`}>
-                                            {role.icon}
-                                        </span>
-                                        <p className="text-xs font-medium">{role.label}</p>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Organization Name</label>
                             <input
                                 type="text"
                                 name="name"
                                 value={formData.name}
                                 onChange={handleChange}
-                                placeholder="John Doe"
+                                placeholder="NGO Name"
                                 className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#fb923c]/50 focus:border-[#fb923c] transition-all"
                                 required
                             />
@@ -136,7 +114,7 @@ function RegisterForm() {
                                 name="email"
                                 value={formData.email}
                                 onChange={handleChange}
-                                placeholder="you@example.com"
+                                placeholder="contact@org.com"
                                 className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#fb923c]/50 focus:border-[#fb923c] transition-all"
                                 required
                             />
@@ -153,6 +131,20 @@ function RegisterForm() {
                                 className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#fb923c]/50 focus:border-[#fb923c] transition-all"
                                 required
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Address</label>
+                            <input
+                                type="text"
+                                name="address"
+                                value={formData.address}
+                                onChange={handleChange}
+                                placeholder="123 Main St, City, Country"
+                                className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#fb923c]/50 focus:border-[#fb923c] transition-all"
+                                required
+                            />
+                            <p className="text-xs text-slate-500 mt-1">This will be used for delivery location.</p>
                         </div>
 
                         <div>
@@ -180,6 +172,8 @@ function RegisterForm() {
                                 required
                             />
                         </div>
+
+                        <input type="hidden" name="role" value="ngo" />
 
                         <button
                             type="submit"

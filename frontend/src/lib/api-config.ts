@@ -14,7 +14,7 @@ export const API_ENDPOINTS = {
     donationById: (id: string) => `/api/v1/donations/${id}`,
 
     // Volunteers
-    volunteers: "/api/v1/volunteers",
+    volunteers: "/api/v1/volunteers/",
     volunteerStatus: "/api/v1/volunteers/status",
     volunteerLocation: "/api/v1/volunteers/location",
 
@@ -35,6 +35,8 @@ export const API_ENDPOINTS = {
     dispatcherTasks: "/api/v1/dispatcher/tasks",
     dispatcherAssign: (id: string) => `/api/v1/dispatcher/tasks/${id}/assign`,
     dispatcherStats: "/api/v1/dispatcher/stats",
+    dispatcherNgos: "/api/v1/dispatcher/ngos",
+    dispatcherDonors: "/api/v1/dispatcher/donors",
 
     // Admin
     adminUsers: "/api/v1/admin/users",

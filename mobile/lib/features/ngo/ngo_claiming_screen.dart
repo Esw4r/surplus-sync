@@ -111,7 +111,8 @@ class _NgoClaimingScreenState extends ConsumerState<NgoClaimingScreen> {
 
     try {
       final apiService = ref.read(apiServiceProvider);
-      await apiService.claimTask(donation.id);
+      final response = await apiService.claimTask(donation.id);
+      final claimedTask = Task.fromJson(response);
       
       if (mounted) {
         // Show QR code dialog
@@ -120,6 +121,7 @@ class _NgoClaimingScreenState extends ConsumerState<NgoClaimingScreen> {
           barrierDismissible: false,
           builder: (context) => QrCodeDialog(
             donationId: donation.id,
+            qrData: claimedTask.deliveryToken ?? donation.id,
             donorName: "Donor", // Placeholder until we have real donor name
           ),
         );

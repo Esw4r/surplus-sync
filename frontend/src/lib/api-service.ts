@@ -79,6 +79,7 @@ class ApiService {
         phone: string;
         password: string;
         role: string;
+        address?: string;
     }) {
         return this.request(API_ENDPOINTS.register, {
             method: "POST",
@@ -200,6 +201,14 @@ class ApiService {
 
     async getDispatcherStats() {
         return this.request<any>(API_ENDPOINTS.dispatcherStats);
+    }
+
+    async getDispatcherNgos() {
+        return this.request<any[]>(API_ENDPOINTS.dispatcherNgos);
+    }
+
+    async getDispatcherDonors() {
+        return this.request<any[]>(API_ENDPOINTS.dispatcherDonors);
     }
 
     // Admin

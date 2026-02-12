@@ -168,15 +168,18 @@ class SocketManager:
     
     async def broadcast_task_update(self, task_id: str, update_data: dict):
         """Broadcast task status update to relevant parties"""
+        # Convert task_id to string if it's a UUID
+        task_id_str = str(task_id) if task_id else None
+        
         # Notify donor tracking this task
-        if task_id in self.donor_sessions:
-            donor_sid = self.donor_sessions[task_id]
+        if task_id_str in self.donor_sessions:
+            donor_sid = self.donor_sessions[task_id_str]
             await self.sio.emit('task_status_update', update_data, room=donor_sid)
         
         # Notify dispatchers
         await self._broadcast_to_dispatchers({
             'event': 'task_updated',
-            'task_id': task_id,
+            'task_id': task_id_str,
             **update_data
         })
     

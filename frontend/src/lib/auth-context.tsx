@@ -6,7 +6,8 @@ import { apiService } from "./api-service";
 
 interface User {
     id: string;
-    name: string;
+    name?: string;
+    full_name?: string;
     email: string;
     role: string;
 }
@@ -22,10 +23,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PUBLIC_ROUTES = ["/", "/login", "/register"];
+const PUBLIC_ROUTES = ["/", "/login", "/register", "/mobile-app"];
 const ROLE_ROUTES: Record<string, string[]> = {
-    donor: ["/dashboard/donor"],
-    volunteer: ["/dashboard/volunteer"],
+    // donor: ["/dashboard/donor"], // Removed from web access
+    // volunteer: ["/dashboard/volunteer"], // Removed from web access
     ngo: ["/dashboard/ngo"],
     dispatcher: ["/dashboard/dispatcher"],
     admin: ["/dashboard/admin", "/dashboard/dispatcher", "/dashboard/ngo"],
@@ -71,15 +72,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        if (user && isDashboardRoute) {
+        if (user) {
             const role = user.role.toLowerCase();
-            const allowedRoutes = ROLE_ROUTES[role] || [];
-            const isAllowed = allowedRoutes.some(route => pathname.startsWith(route));
 
-            if (!isAllowed) {
-                // Redirect to appropriate dashboard
-                const defaultRoute = ROLE_ROUTES[role]?.[0] || "/";
-                router.push(defaultRoute);
+            // Redirect Donors and Volunteers to mobile app info page
+            // But don't redirect if they're on /login (they might be trying to switch accounts)
+            if (["donor", "volunteer"].includes(role) && !pathname.startsWith("/mobile-app") && pathname !== "/login") {
+                router.push("/mobile-app");
+                return;
+            }
+
+            if (isDashboardRoute) {
+                const allowedRoutes = ROLE_ROUTES[role] || [];
+                const isAllowed = allowedRoutes.some(route => pathname.startsWith(route));
+
+                if (!isAllowed) {
+                    // Redirect to appropriate dashboard
+                    const defaultRoute = ROLE_ROUTES[role]?.[0] || "/";
+                    router.push(defaultRoute);
+                }
             }
         }
     }, [user, isLoading, pathname, router]);
@@ -91,13 +102,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return { success: false, error: response.error };
         }
 
-        await refreshUser();
-
-        // Redirect based on role
-        if (user) {
-            const role = user.role.toLowerCase();
-            const defaultRoute = ROLE_ROUTES[role]?.[0] || "/dashboard";
-            router.push(defaultRoute);
+        // We can't await refreshUser() easily here to get the role immediately from state update, 
+        // so we fetch 'me' directly or rely on the effect.
+        // But for better UX, let's fetch to know where to redirect.
+        const meRes = await apiService.getMe();
+        if (meRes.data) {
+            const role = meRes.data.role.toLowerCase();
+            if (["donor", "volunteer"].includes(role)) {
+                router.push("/mobile-app");
+            } else {
+                const defaultRoute = ROLE_ROUTES[role]?.[0] || "/dashboard";
+                router.push(defaultRoute);
+            }
+            // Update state
+            setUser(meRes.data);
         }
 
         return { success: true };

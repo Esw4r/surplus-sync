@@ -35,8 +35,9 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    clerk_user_id: str
+    clerk_user_id: Optional[str] = None
     password: Optional[str] = None  # For non-Clerk auth
+    address: Optional[str] = None
 
 
 class UserResponse(UserBase):

@@ -131,6 +131,7 @@ async def get_current_user(
     token_sub = payload.get("sub")
     
     if token_sub is None:
+        print("[AUTH_DEBUG] Token sub is None")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials"
@@ -146,6 +147,7 @@ async def get_current_user(
         user = db.query(User).filter(User.email == token_sub).first()
         
     if user is None:
+        print(f"[AUTH_DEBUG] User not found for sub: {token_sub}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"

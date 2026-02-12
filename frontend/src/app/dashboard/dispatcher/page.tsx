@@ -1,22 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { apiService } from "../../../lib/api-service";
 import { useWebSocket, WebSocketMessage } from "../../../lib/websocket-service";
 import { useToast } from "../../../lib/toast-context";
 import { useAuth } from "../../../lib/auth-context";
+import dynamic from "next/dynamic";
+
+const DispatcherMap = dynamic(() => import("../../../components/DispatcherMap"), {
+    ssr: false,
+    loading: () => <div className="w-full h-full flex items-center justify-center bg-slate-900/50 rounded-xl text-slate-400">Loading Map Component...</div>
+});
 
 interface Task {
     id: string;
     food_type: string;
-    quantity: number;
+    quantity_kg: number;
     status: string;
     pickup_address: string;
-    delivery_address: string;
+    delivery_address?: string;
     volunteer_id?: string;
     created_at: string;
-    priority: number;
+    priority?: number;
+    pickup_lat?: number;
+    pickup_lng?: number;
+    donor_name?: string;
+    ngo_id?: string;
+    description?: string;
 }
 
 interface Volunteer {
@@ -24,15 +35,51 @@ interface Volunteer {
     name: string;
     is_available: boolean;
     current_location?: { lat: number; lng: number };
+    latitude?: number;
+    longitude?: number;
+    phone?: string;
+    status?: string;
 }
 
 export default function DispatcherDashboard() {
-    const { user, logout } = useAuth();
+    const { user, logout, isAuthenticated, isLoading: authLoading } = useAuth();
     const { addToast } = useToast();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+    const [ngos, setNgos] = useState<any[]>([]);
+    const [donors, setDonors] = useState<any[]>([]);
+
     const [isLoading, setIsLoading] = useState(true);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [viewMode, setViewMode] = useState<"list" | "map">("list");
+
+
+    const fetchData = useCallback(async () => {
+        // Don't fetch if not authenticated
+        const token = localStorage.getItem("auth_token");
+        if (!token) {
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const [tasksRes, volunteersRes, ngosRes, donorsRes] = await Promise.all([
+                apiService.getDispatcherTasks(),
+                apiService.getVolunteers(),
+                apiService.getDispatcherNgos(),
+                apiService.getDispatcherDonors(),
+            ]);
+
+            if (tasksRes.data) setTasks(tasksRes.data);
+            if (volunteersRes.data) setVolunteers(volunteersRes.data);
+            if (ngosRes.data) setNgos(ngosRes.data);
+            if (donorsRes.data) setDonors(donorsRes.data);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
     // Real-time updates
     useWebSocket(
@@ -55,30 +102,15 @@ export default function DispatcherDashboard() {
 
             fetchData();
         },
-        []
+        [fetchData, addToast] // Include fetchData and addToast in dependencies
     );
 
     useEffect(() => {
+        if (!isAuthenticated || authLoading) return;
         fetchData();
         const interval = setInterval(fetchData, 30000);
         return () => clearInterval(interval);
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            const [tasksRes, volunteersRes] = await Promise.all([
-                apiService.getDispatcherTasks(),
-                apiService.getVolunteers(),
-            ]);
-
-            if (tasksRes.data) setTasks(tasksRes.data);
-            if (volunteersRes.data) setVolunteers(volunteersRes.data);
-        } catch (error) {
-            console.error("Error fetching data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    }, [fetchData, isAuthenticated, authLoading]);
 
     const assignVolunteer = async (taskId: string, volunteerId: string) => {
         const res = await apiService.dispatcherAssignTask(taskId, volunteerId);
@@ -125,8 +157,25 @@ export default function DispatcherDashboard() {
                         <span className="text-xl font-bold">Dispatcher Console</span>
                     </Link>
                     <div className="flex items-center gap-6">
+                        <div className="flex bg-slate-800/50 rounded-lg p-1 border border-white/10">
+                            <button
+                                onClick={() => setViewMode("list")}
+                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === "list" ? "bg-[#fb923c] text-slate-900" : "text-slate-400 hover:text-white"
+                                    }`}
+                            >
+                                List View
+                            </button>
+                            <button
+                                onClick={() => setViewMode("map")}
+                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === "map" ? "bg-[#fb923c] text-slate-900" : "text-slate-400 hover:text-white"
+                                    }`}
+                            >
+                                Map View
+                            </button>
+                        </div>
+
                         {user && (
-                            <span className="text-sm text-slate-400">Welcome, {user.name}</span>
+                            <span className="text-sm text-slate-400">Welcome, {user.full_name || user.name}</span>
                         )}
                         <div className="flex items-center gap-2 text-sm">
                             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
@@ -185,101 +234,114 @@ export default function DispatcherDashboard() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Task Queue */}
-                    <div className="lg:col-span-2 glass-card p-6 relative max-h-[calc(100vh-200px)] overflow-y-auto">
-                        <div className="glass-highlight"></div>
-                        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[#fb923c]">queue</span>
-                            Task Queue
-                        </h2>
 
-                        {isLoading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="w-8 h-8 border-2 border-[#fb923c]/30 border-t-[#fb923c] rounded-full animate-spin"></div>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {tasks.length === 0 ? (
-                                    <p className="text-center text-slate-400 py-8">No tasks in queue</p>
-                                ) : (
-                                    tasks.map((task) => (
-                                        <div
-                                            key={task.id}
-                                            onClick={() => setSelectedTask(task)}
-                                            className={`p-4 bg-slate-800/30 rounded-xl border transition-all cursor-pointer ${selectedTask?.id === task.id ? "border-[#fb923c] bg-[#fb923c]/10" : "border-white/5 hover:border-white/10"
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="flex items-center gap-3">
-                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(task.status)}`}>
-                                                        {task.status}
-                                                    </span>
-                                                    <span className="font-medium">{task.food_type}</span>
-                                                </div>
-                                                <span className="text-lg font-bold text-[#fb923c]">{task.quantity}kg</span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4 text-sm text-slate-400">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="material-symbols-outlined text-green-400 text-sm">location_on</span>
-                                                    <span className="truncate">{task.pickup_address}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="material-symbols-outlined text-red-400 text-sm">flag</span>
-                                                    <span className="truncate">{task.delivery_address}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
+                {viewMode === "map" ? (
+                    <div className="glass-card p-4 h-[calc(100vh-250px)] relative">
+                        <div className="glass-highlight"></div>
+                        <DispatcherMap
+                            tasks={tasks}
+                            volunteers={volunteers}
+                            ngos={ngos}
+                            donors={donors}
+                        />
                     </div>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Task Queue */}
+                        <div className="lg:col-span-2 glass-card p-6 relative max-h-[calc(100vh-250px)] overflow-y-auto">
+                            <div className="glass-highlight"></div>
+                            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[#fb923c]">queue</span>
+                                Task Queue
+                            </h2>
 
-                    {/* Volunteers Panel */}
-                    <div className="glass-card p-6 relative max-h-[calc(100vh-200px)] overflow-y-auto">
-                        <div className="glass-highlight"></div>
-                        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-green-400">groups</span>
-                            Volunteers
-                        </h2>
+                            {isLoading ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="w-8 h-8 border-2 border-[#fb923c]/30 border-t-[#fb923c] rounded-full animate-spin"></div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {tasks.length === 0 ? (
+                                        <p className="text-center text-slate-400 py-8">No tasks in queue</p>
+                                    ) : (
+                                        tasks.map((task) => (
+                                            <div
+                                                key={task.id}
+                                                onClick={() => setSelectedTask(task)}
+                                                className={`p-4 bg-slate-800/30 rounded-xl border transition-all cursor-pointer ${selectedTask?.id === task.id ? "border-[#fb923c] bg-[#fb923c]/10" : "border-white/5 hover:border-white/10"
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(task.status)}`}>
+                                                            {task.status}
+                                                        </span>
+                                                        <span className="font-medium">{task.food_type}</span>
+                                                    </div>
+                                                    <span className="text-lg font-bold text-[#fb923c]">{task.quantity_kg || 0} kg</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4 text-sm text-slate-400">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="material-symbols-outlined text-green-400 text-sm">location_on</span>
+                                                        <span className="truncate">{task.pickup_address}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="material-symbols-outlined text-red-400 text-sm">flag</span>
+                                                        <span className="truncate">{task.delivery_address || "Awaiting NGO claim"}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
-                        <div className="space-y-3">
-                            {volunteers.map((volunteer) => (
-                                <div
-                                    key={volunteer.id}
-                                    className={`p-4 rounded-xl border transition-all ${volunteer.is_available
+                        {/* Volunteers Panel */}
+                        <div className="glass-card p-6 relative max-h-[calc(100vh-250px)] overflow-y-auto">
+                            <div className="glass-highlight"></div>
+                            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-green-400">groups</span>
+                                Volunteers
+                            </h2>
+
+                            <div className="space-y-3">
+                                {volunteers.map((volunteer) => (
+                                    <div
+                                        key={volunteer.id}
+                                        className={`p-4 rounded-xl border transition-all ${volunteer.is_available
                                             ? "bg-green-500/10 border-green-500/30"
                                             : "bg-slate-800/30 border-white/5"
-                                        }`}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${volunteer.is_available ? "bg-green-500/20" : "bg-slate-700"
-                                                }`}>
-                                                <span className="material-symbols-outlined text-green-400">person</span>
+                                            }`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${volunteer.is_available ? "bg-green-500/20" : "bg-slate-700"
+                                                    }`}>
+                                                    <span className="material-symbols-outlined text-green-400">person</span>
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium">{volunteer.name}</p>
+                                                    <p className={`text-xs ${volunteer.is_available ? "text-green-400" : "text-slate-500"}`}>
+                                                        {volunteer.is_available ? "Available" : "Busy"}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="font-medium">{volunteer.name}</p>
-                                                <p className={`text-xs ${volunteer.is_available ? "text-green-400" : "text-slate-500"}`}>
-                                                    {volunteer.is_available ? "Available" : "Busy"}
-                                                </p>
-                                            </div>
+                                            {selectedTask && selectedTask.status === "PENDING" && volunteer.is_available && (
+                                                <button
+                                                    onClick={() => assignVolunteer(selectedTask.id, volunteer.id)}
+                                                    className="px-3 py-1 bg-[#fb923c] hover:bg-orange-400 text-slate-900 rounded-lg text-sm font-medium transition-all"
+                                                >
+                                                    Assign
+                                                </button>
+                                            )}
                                         </div>
-                                        {selectedTask && selectedTask.status === "PENDING" && volunteer.is_available && (
-                                            <button
-                                                onClick={() => assignVolunteer(selectedTask.id, volunteer.id)}
-                                                className="px-3 py-1 bg-[#fb923c] hover:bg-orange-400 text-slate-900 rounded-lg text-sm font-medium transition-all"
-                                            >
-                                                Assign
-                                            </button>
-                                        )}
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </main>
         </div>
     );
