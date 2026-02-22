@@ -103,6 +103,9 @@ def serialize_ngo(ngo) -> Dict:
         "qr_token": ngo.qr_token,
         "rating": float(ngo.rating) if ngo.rating else 5.0,
         "total_claims": ngo.total_claims or 0,
+        "license_expiry": ngo.license_expiry.isoformat() if ngo.license_expiry else None,
+        "license_document_url": ngo.license_document_url,
+        "rejection_reason": ngo.rejection_reason,
         "verified_at": ngo.verified_at.isoformat() if ngo.verified_at else None,
         "created_at": ngo.created_at.isoformat() if ngo.created_at else None,
     }

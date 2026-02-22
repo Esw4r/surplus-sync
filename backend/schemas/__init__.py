@@ -4,7 +4,7 @@ Includes validators for PostGIS Geometry field serialization.
 """
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from typing import Optional, List, Any
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 from models import UserRole, FoodType, TaskStatus, VolunteerStatus, VehicleType, VerificationStatus
 
@@ -38,6 +38,8 @@ class UserCreate(UserBase):
     clerk_user_id: Optional[str] = None
     password: Optional[str] = None  # For non-Clerk auth
     address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class UserResponse(UserBase):
@@ -116,11 +118,19 @@ class NGOCreate(BaseModel):
 class NGOUpdate(BaseModel):
     organization_name: Optional[str] = None
     license_number: Optional[str] = None
+    license_expiry: Optional[date] = None
+    license_document_url: Optional[str] = None
     address: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     capacity_kg: Optional[int] = None
     preferred_food_types: Optional[List[FoodType]] = None
+
+
+class NGOLicenseSubmit(BaseModel):
+    license_number: str
+    license_expiry: date
+    license_document_url: Optional[str] = None
 
 
 class NGOResponse(BaseModel):
@@ -135,6 +145,9 @@ class NGOResponse(BaseModel):
     qr_token: str
     rating: float = 5.0
     total_claims: int = 0
+    license_expiry: Optional[date] = None
+    license_document_url: Optional[str] = None
+    rejection_reason: Optional[str] = None
     verified_at: Optional[datetime] = None
     created_at: datetime
     latitude: Optional[float] = None
@@ -151,7 +164,8 @@ class NGOResponse(BaseModel):
             data = {}
             for key in ['id', 'user_id', 'organization_name', 'license_number', 'verification_status',
                        'address', 'capacity_kg', 'current_stock_kg', 'qr_token', 'rating', 
-                       'total_claims', 'verified_at', 'created_at', 'location', 'preferred_food_types']:
+                       'total_claims', 'license_expiry', 'license_document_url', 'rejection_reason',
+                       'verified_at', 'created_at', 'location', 'preferred_food_types']:
                 if hasattr(values, key):
                     data[key] = getattr(values, key)
             

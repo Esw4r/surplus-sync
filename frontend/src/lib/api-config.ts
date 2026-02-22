@@ -30,6 +30,9 @@ export const API_ENDPOINTS = {
     ngoNearbyTasks: "/api/v1/ngos/nearby-tasks",
     ngoClaimedTasks: "/api/v1/ngos/claimed-tasks",
     ngoClaimTask: (id: string) => `/api/v1/ngos/tasks/${id}/claim`,
+    ngoSubmitLicense: "/api/v1/ngos/me/license",
+    ngoUploadLicense: "/api/v1/ngos/upload-license",
+    ngoStatus: "/api/v1/ngos/me/status",
 
     // Dispatcher
     dispatcherTasks: "/api/v1/dispatcher/tasks",
@@ -44,6 +47,8 @@ export const API_ENDPOINTS = {
     adminNgos: "/api/v1/admin/ngos",
     adminApproveNgo: (id: string) => `/api/v1/admin/ngos/${id}/approve`,
     adminRejectNgo: (id: string) => `/api/v1/admin/ngos/${id}/reject`,
+    adminRejectNgoWithReason: (id: string) => `/api/v1/admin/ngos/${id}/reject-with-reason`,
+    adminExpiringNgos: "/api/v1/admin/ngos/expiring",
     adminStats: "/api/v1/admin/stats",
     adminDonations: "/api/v1/admin/donations",
 } as const;

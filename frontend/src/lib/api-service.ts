@@ -36,8 +36,21 @@ class ApiService {
             const data = await response.json().catch(() => null);
 
             if (!response.ok) {
+                let errorMsg = "Request failed";
+                if (data?.detail) {
+                    if (typeof data.detail === "string") {
+                        errorMsg = data.detail;
+                    } else if (Array.isArray(data.detail)) {
+                        // Pydantic validation errors: [{type, loc, msg, input}, ...]
+                        errorMsg = data.detail.map((e: { msg?: string; loc?: string[] }) => e.msg || JSON.stringify(e)).join("; ");
+                    } else {
+                        errorMsg = JSON.stringify(data.detail);
+                    }
+                } else if (data?.message) {
+                    errorMsg = data.message;
+                }
                 return {
-                    error: data?.detail || data?.message || "Request failed",
+                    error: errorMsg,
                     status: response.status,
                 };
             }
@@ -80,10 +93,23 @@ class ApiService {
         password: string;
         role: string;
         address?: string;
+        latitude?: number;
+        longitude?: number;
     }) {
+        // Map frontend field names to backend schema (UserCreate)
+        const payload = {
+            full_name: userData.name,
+            email: userData.email,
+            phone_number: userData.phone,
+            password: userData.password,
+            role: userData.role,
+            address: userData.address,
+            latitude: userData.latitude,
+            longitude: userData.longitude,
+        };
         return this.request(API_ENDPOINTS.register, {
             method: "POST",
-            body: JSON.stringify(userData),
+            body: JSON.stringify(payload),
         });
     }
 
@@ -244,9 +270,14 @@ class ApiService {
     }
 
     async rejectNgo(id: string, reason?: string) {
+        if (reason) {
+            return this.request(API_ENDPOINTS.adminRejectNgoWithReason(id), {
+                method: "POST",
+                body: JSON.stringify({ reason }),
+            });
+        }
         return this.request(API_ENDPOINTS.adminRejectNgo(id), {
             method: "POST",
-            body: JSON.stringify({ reason }),
         });
     }
 
@@ -261,6 +292,54 @@ class ApiService {
 
     async getAdminDonations() {
         return this.request<any[]>(API_ENDPOINTS.adminDonations);
+    }
+
+    // NGO License
+    async submitNgoLicense(data: {
+        license_number: string;
+        license_expiry: string;
+        license_document_url?: string;
+    }) {
+        return this.request(API_ENDPOINTS.ngoSubmitLicense, {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async uploadLicenseFile(file: File) {
+        const token = this.getToken();
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.ngoUploadLicense}`, {
+                method: "POST",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                body: formData,
+            });
+
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+                return { error: data?.detail || "Upload failed", status: response.status };
+            }
+            return { data, status: response.status };
+        } catch (error) {
+            return { error: "Upload failed", status: 0 };
+        }
+    }
+
+    async getNgoStatus() {
+        return this.request<{
+            verification_status: string;
+            rejection_reason?: string;
+            verified_at?: string;
+            license_number?: string;
+            license_expiry?: string;
+        }>(API_ENDPOINTS.ngoStatus);
+    }
+
+    async getExpiringNgos() {
+        return this.request<any[]>(API_ENDPOINTS.adminExpiringNgos);
     }
 }
 

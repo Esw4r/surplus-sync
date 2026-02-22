@@ -10,6 +10,9 @@ interface User {
     full_name?: string;
     email: string;
     role: string;
+    verification_status?: string;
+    ngo_id?: string;
+    rejection_reason?: string;
 }
 
 interface AuthContextType {
@@ -27,7 +30,7 @@ const PUBLIC_ROUTES = ["/", "/login", "/register", "/mobile-app"];
 const ROLE_ROUTES: Record<string, string[]> = {
     // donor: ["/dashboard/donor"], // Removed from web access
     // volunteer: ["/dashboard/volunteer"], // Removed from web access
-    ngo: ["/dashboard/ngo"],
+    ngo: ["/dashboard/ngo", "/dashboard/ngo/pending", "/dashboard/ngo/rejected"],
     dispatcher: ["/dashboard/dispatcher"],
     admin: ["/dashboard/admin", "/dashboard/dispatcher", "/dashboard/ngo"],
 };
@@ -110,6 +113,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const role = meRes.data.role.toLowerCase();
             if (["donor", "volunteer"].includes(role)) {
                 router.push("/mobile-app");
+            } else if (role === "ngo") {
+                // Route based on verification status
+                const vs = meRes.data.verification_status?.toUpperCase();
+                if (vs === "VERIFIED") {
+                    router.push("/dashboard/ngo");
+                } else if (vs === "REJECTED") {
+                    router.push("/dashboard/ngo/rejected");
+                } else {
+                    router.push("/dashboard/ngo/pending");
+                }
             } else {
                 const defaultRoute = ROLE_ROUTES[role]?.[0] || "/dashboard";
                 router.push(defaultRoute);

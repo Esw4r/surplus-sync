@@ -3,7 +3,14 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from config import settings
 
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
+# Auto-convert psycopg2 URLs to psycopg3 (psycopg) driver
+_db_url = settings.DATABASE_URL
+if _db_url.startswith("postgresql+psycopg2://"):
+    _db_url = _db_url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+elif _db_url.startswith("postgresql://"):
+    _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
+engine = create_engine(_db_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
