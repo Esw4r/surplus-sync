@@ -9,6 +9,7 @@ from schemas import UserCreate, UserResponse, Token, LoginRequest
 from utils.auth import get_password_hash, verify_password, create_access_token, get_current_user
 from utils.qr_generator import generate_qr_token, generate_pickup_delivery_tokens
 from utils.spatial import create_point
+from utils.serialize import serialize_user
 from config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -49,9 +50,11 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         is_active=True
     )
     
-    # Geocode address if provided
+    # Geocode address or use provided lat/lng
     lat, lng = 0.0, 0.0
-    if user_data.address:
+    if user_data.latitude is not None and user_data.longitude is not None:
+        lat, lng = user_data.latitude, user_data.longitude
+    elif user_data.address:
         from utils.geocoding import geocode_address
         lat, lng = await geocode_address(user_data.address)
     
@@ -156,8 +159,21 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_profile(current_user: User = Depends(get_current_user)):
-    """Get current user profile"""
-    return current_user
+@router.get("/me")
+async def get_current_user_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get current user profile with role-specific data"""
+    user_data = serialize_user(current_user)
+    
+    # Add NGO-specific fields
+    if current_user.role == UserRole.NGO:
+        ngo = db.query(NGO).filter(NGO.user_id == current_user.id).first()
+        if ngo:
+            user_data["verification_status"] = ngo.verification_status.value if ngo.verification_status else "PENDING"
+            user_data["ngo_id"] = str(ngo.id)
+            user_data["rejection_reason"] = ngo.rejection_reason
+    
+    return user_data
 

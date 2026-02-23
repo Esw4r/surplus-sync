@@ -5,7 +5,9 @@ from typing import Dict, Any
 from database import get_db
 from models import User, Volunteer, NGO, Donor, Task, TaskStatus, VolunteerStatus, VerificationStatus
 from utils.auth import get_current_user
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -99,7 +101,7 @@ async def reject_ngo(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Reject an NGO"""
+    """Reject an NGO with optional reason"""
     ngo = db.query(NGO).filter(NGO.id == ngo_id).first()
     if not ngo:
         raise HTTPException(status_code=404, detail="NGO not found")
@@ -108,6 +110,47 @@ async def reject_ngo(
     ngo.verified_at = None
     db.commit()
     return {"message": f"NGO {ngo.organization_name} rejected"}
+
+
+class RejectNgoRequest(BaseModel):
+    reason: Optional[str] = None
+
+
+@router.post("/ngos/{ngo_id}/reject-with-reason")
+async def reject_ngo_with_reason(
+    ngo_id: str,
+    body: RejectNgoRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Reject an NGO with a specific reason"""
+    ngo = db.query(NGO).filter(NGO.id == ngo_id).first()
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    ngo.verification_status = VerificationStatus.REJECTED
+    ngo.verified_at = None
+    ngo.rejection_reason = body.reason
+    db.commit()
+    return {"message": f"NGO {ngo.organization_name} rejected", "reason": body.reason}
+
+
+@router.get("/ngos/expiring")
+async def get_expiring_ngos(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get NGOs with licenses expiring within specified days"""
+    threshold = date.today() + timedelta(days=days)
+    expiring_ngos = db.query(NGO).filter(
+        NGO.license_expiry != None,
+        NGO.license_expiry <= threshold,
+        NGO.verification_status == VerificationStatus.VERIFIED
+    ).all()
+    
+    from utils.serialize import serialize_ngo, serialize_list
+    return serialize_list(expiring_ngos, serialize_ngo)
 
 
 @router.get("/stats/overview")

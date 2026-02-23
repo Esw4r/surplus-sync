@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from database import engine, Base
 from config import settings
@@ -9,6 +10,7 @@ from utils.socket_manager import socket_manager
 import socketio
 import uvicorn
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -94,6 +96,11 @@ async def health_check():
         "redis": redis_status,
         "websocket": websocket_status
     }
+
+# Mount uploads directory for serving license PDFs
+uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 
 # Mount Socket.IO (Must wrap FastAPI to handle paths correctly at root)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, Enum as SQLEnum, Text, ForeignKey, Integer, DECIMAL, ARRAY
+from sqlalchemy import Column, String, Boolean, DateTime, Date, Enum as SQLEnum, Text, ForeignKey, Integer, DECIMAL, ARRAY
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -122,6 +122,9 @@ class NGO(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"))
     organization_name = Column(String(150), nullable=False)
     license_number = Column(String(100), unique=True, nullable=False)
+    license_expiry = Column(Date)
+    license_document_url = Column(String(500))
+    rejection_reason = Column(Text)
     verification_status = Column(SQLEnum(VerificationStatus), default=VerificationStatus.PENDING)
     address = Column(Text, nullable=False)
     location = Column(Geometry('POINT', srid=4326), nullable=False)

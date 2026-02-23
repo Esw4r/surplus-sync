@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
 from database import get_db
 from models import NGO, User, Task, TaskStatus, VerificationStatus
-from schemas import NGOCreate, NGOUpdate, NGOResponse, TaskResponse
+from schemas import NGOCreate, NGOUpdate, NGOResponse, TaskResponse, NGOLicenseSubmit
 from utils.auth import get_current_user
 from utils.spatial import create_point, find_nearby_tasks
 from utils.serialize import serialize_ngo, serialize_task, serialize_list
 from datetime import datetime
+import os
+import uuid as uuid_mod
 
 router = APIRouter(prefix="/ngos", tags=["NGOs"])
 
@@ -91,6 +93,92 @@ async def update_my_ngo_profile(
     return serialize_ngo(ngo)
 
 
+@router.post("/me/license")
+async def submit_license(
+    license_data: NGOLicenseSubmit,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Submit or update license details for current NGO"""
+    ngo = db.query(NGO).filter(NGO.user_id == current_user.id).first()
+    if not ngo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="NGO profile not found"
+        )
+    
+    ngo.license_number = license_data.license_number
+    ngo.license_expiry = license_data.license_expiry
+    if license_data.license_document_url:
+        ngo.license_document_url = license_data.license_document_url
+    
+    # Reset to pending if previously rejected (resubmission)
+    if ngo.verification_status == VerificationStatus.REJECTED:
+        ngo.verification_status = VerificationStatus.PENDING
+        ngo.rejection_reason = None
+    
+    db.commit()
+    db.refresh(ngo)
+    return serialize_ngo(ngo)
+
+
+@router.post("/upload-license")
+async def upload_license_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload license PDF file"""
+    # Validate file type
+    if file.content_type not in ["application/pdf", "image/jpeg", "image/png"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF, JPEG, and PNG files are allowed"
+        )
+    
+    # Validate file size (max 10MB)
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File size must be less than 10MB"
+        )
+    
+    # Save file
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "licenses")
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    ext = os.path.splitext(file.filename)[1] if file.filename else ".pdf"
+    filename = f"{uuid_mod.uuid4()}{ext}"
+    filepath = os.path.join(upload_dir, filename)
+    
+    with open(filepath, "wb") as f:
+        f.write(contents)
+    
+    file_url = f"/uploads/licenses/{filename}"
+    return {"url": file_url, "filename": filename}
+
+
+@router.get("/me/status")
+async def get_my_verification_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get current NGO verification status"""
+    ngo = db.query(NGO).filter(NGO.user_id == current_user.id).first()
+    if not ngo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="NGO profile not found"
+        )
+    return {
+        "verification_status": ngo.verification_status.value if ngo.verification_status else "PENDING",
+        "rejection_reason": ngo.rejection_reason,
+        "verified_at": ngo.verified_at.isoformat() if ngo.verified_at else None,
+        "license_number": ngo.license_number,
+        "license_expiry": ngo.license_expiry.isoformat() if ngo.license_expiry else None,
+    }
+
+
 @router.get("/nearby-tasks")
 async def get_nearby_tasks(
     max_distance_km: float = 10.0,
@@ -105,12 +193,12 @@ async def get_nearby_tasks(
             detail="NGO profile not found"
         )
     
-    # Relaxed verification for testing
-    # if ngo.verification_status != VerificationStatus.VERIFIED:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="NGO not verified yet. Cannot access tasks."
-    #     )
+    # Require verification for accessing tasks
+    if ngo.verification_status != VerificationStatus.VERIFIED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="NGO not verified yet. Cannot access tasks."
+        )
     
     # Get NGO coordinates
     from utils.spatial import extract_coordinates

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiService } from "../../../lib/api-service";
+import { API_BASE_URL } from "../../../lib/api-config";
 import { useWebSocket } from "../../../lib/websocket-service";
 import { useToast } from "../../../lib/toast-context";
 
@@ -21,6 +22,10 @@ interface NGO {
     email: string;
     status: "pending" | "approved" | "rejected" | "PENDING" | "VERIFIED" | "REJECTED";
     created_at: string;
+    license_number?: string;
+    license_expiry?: string;
+    license_document_url?: string;
+    rejection_reason?: string;
 }
 
 interface Donation {
@@ -112,7 +117,9 @@ export default function AdminDashboard() {
     };
 
     const handleRejectNgo = async (id: string) => {
-        const res = await apiService.rejectNgo(id);
+        const reason = window.prompt("Enter rejection reason (optional):");
+        if (reason === null) return; // User cancelled
+        const res = await apiService.rejectNgo(id, reason || undefined);
         if (!res.error) {
             addToast({ type: "warning", title: "NGO Rejected", message: "The NGO application was rejected" });
             fetchData();
@@ -339,34 +346,68 @@ export default function AdminDashboard() {
 
                         <div className="space-y-4">
                             {ngos.map((ngo) => (
-                                <div key={ngo.id} className="p-4 bg-slate-800/30 rounded-xl flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                                            <span className="material-symbols-outlined text-purple-400">volunteer_activism</span>
-                                        </div>
-                                        <div>
-                                            <p className="font-medium">{ngo.name}</p>
-                                            <p className="text-sm text-slate-400">{ngo.email}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${(ngo.status?.toLowerCase() === "verified" || ngo.status?.toLowerCase() === "approved") ? "bg-green-500/20 text-green-400" :
-                                            (ngo.status?.toLowerCase() === "rejected") ? "bg-red-500/20 text-red-400" :
-                                                "bg-yellow-500/20 text-yellow-400"
-                                            }`}>
-                                            {ngo.status}
-                                        </span>
-                                        {(ngo.status?.toLowerCase() === "pending") && (
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleApproveNgo(ngo.id)} className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg text-sm font-medium transition-colors">
-                                                    Approve
-                                                </button>
-                                                <button onClick={() => handleRejectNgo(ngo.id)} className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors">
-                                                    Reject
-                                                </button>
+                                <div key={ngo.id} className="p-4 bg-slate-800/30 rounded-xl">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-purple-400">volunteer_activism</span>
                                             </div>
-                                        )}
+                                            <div>
+                                                <p className="font-medium">{ngo.name}</p>
+                                                <p className="text-sm text-slate-400">{ngo.email}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${(ngo.status?.toLowerCase() === "verified" || ngo.status?.toLowerCase() === "approved") ? "bg-green-500/20 text-green-400" :
+                                                (ngo.status?.toLowerCase() === "rejected") ? "bg-red-500/20 text-red-400" :
+                                                    "bg-yellow-500/20 text-yellow-400"
+                                                }`}>
+                                                {ngo.status}
+                                            </span>
+                                        </div>
                                     </div>
+
+                                    {/* License Details */}
+                                    <div className="grid grid-cols-3 gap-3 mb-3 text-sm">
+                                        <div className="bg-slate-700/30 rounded-lg p-2">
+                                            <p className="text-slate-500 text-xs">License #</p>
+                                            <p className="text-slate-200 font-mono text-xs">{ngo.license_number || "Not submitted"}</p>
+                                        </div>
+                                        <div className="bg-slate-700/30 rounded-lg p-2">
+                                            <p className="text-slate-500 text-xs">Expiry</p>
+                                            <p className="text-slate-200 text-xs">{ngo.license_expiry ? new Date(ngo.license_expiry).toLocaleDateString() : "N/A"}</p>
+                                        </div>
+                                        <div className="bg-slate-700/30 rounded-lg p-2">
+                                            <p className="text-slate-500 text-xs">Document</p>
+                                            {ngo.license_document_url ? (
+                                                <a href={`${API_BASE_URL}${ngo.license_document_url}`} target="_blank" rel="noopener noreferrer" className="text-[#fb923c] text-xs hover:text-orange-300 flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-xs">open_in_new</span>
+                                                    View PDF
+                                                </a>
+                                            ) : (
+                                                <p className="text-slate-500 text-xs">Not uploaded</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Rejection reason if rejected */}
+                                    {ngo.status?.toLowerCase() === "rejected" && ngo.rejection_reason && (
+                                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2 mb-3">
+                                            <p className="text-xs text-red-400">Rejection: {ngo.rejection_reason}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Actions */}
+                                    {(ngo.status?.toLowerCase() === "pending") && (
+                                        <div className="flex gap-2 justify-end">
+                                            <button onClick={() => handleApproveNgo(ngo.id)} className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg text-sm font-medium transition-colors">
+                                                Approve
+                                            </button>
+                                            <button onClick={() => handleRejectNgo(ngo.id)} className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors">
+                                                Reject
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                             {ngos.length === 0 && (
