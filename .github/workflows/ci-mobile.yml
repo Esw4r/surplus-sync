@@ -46,7 +46,7 @@ jobs:
         if: matrix.app == 'mobile' # only build for main app for now
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.app }}-coverage
           path: ${{ matrix.app }}/coverage
