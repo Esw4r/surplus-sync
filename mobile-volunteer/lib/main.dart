@@ -4,26 +4,23 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'features/auth/login_screen.dart';
 import 'features/auth/register_screen.dart';
-import 'features/auth/role_selector_screen.dart';
-import 'features/donor/donor_home_screen.dart';
-
-import 'features/ngo/ngo_home_screen.dart';
+import 'features/volunteer/volunteer_home_screen.dart';
 import 'services/api_service.dart';
 
 void main() {
-  runApp(const ProviderScope(child: FoodRescueApp()));
+  runApp(const ProviderScope(child: VolunteerApp()));
 }
 
 /// Global API service provider
 final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
 
-class FoodRescueApp extends StatelessWidget {
-  const FoodRescueApp({super.key});
+class VolunteerApp extends StatelessWidget {
+  const VolunteerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Food Rescue',
+      title: 'Food Rescue - Volunteer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -56,10 +53,7 @@ class FoodRescueApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/role-select': (context) => const RoleSelectorScreen(),
-        '/donor-home': (context) => const DonorHomeScreen(),
-
-        '/ngo-home': (context) => const NgoHomeScreen(),
+        '/volunteer-home': (context) => const VolunteerHomeScreen(),
       },
     );
   }
@@ -89,21 +83,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (!mounted) return;
 
     if (apiService.isAuthenticated) {
-      // Get user profile to determine role
+      // Volunteer-only app: go straight to volunteer home
       try {
-        final user = await apiService.getCurrentUser();
-        
+        await apiService.getCurrentUser();
         if (!mounted) return;
-        
-        final role = user['role']?.toString().toLowerCase();
-        
-        if (role == 'donor') {
-          Navigator.pushReplacementNamed(context, '/donor-home');
-        } else if (role == 'ngo') {
-          Navigator.pushReplacementNamed(context, '/ngo-home');
-        } else {
-          Navigator.pushReplacementNamed(context, '/role-select');
-        }
+        Navigator.pushReplacementNamed(context, '/volunteer-home');
       } catch (e) {
         Navigator.pushReplacementNamed(context, '/login');
       }
@@ -127,7 +111,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 borderRadius: BorderRadius.circular(24),
               ),
               child: const Icon(
-                Icons.volunteer_activism,
+                Icons.delivery_dining,
                 size: 64,
                 color: Color(0xFF4CAF50),
               ),
@@ -143,7 +127,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Saving food, feeding lives',
+              'Volunteer Delivery App',
               style: GoogleFonts.inter(
                 fontSize: 16,
                 color: Colors.white70,

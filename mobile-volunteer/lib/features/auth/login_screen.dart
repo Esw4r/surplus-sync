@@ -41,19 +41,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _passwordController.text,
       );
 
-      // Get user profile to determine role
-      final user = await apiService.getCurrentUser();
-      final role = user['role']?.toString().toLowerCase();
-
+      // Volunteer-only app: always navigate to volunteer home
       if (!mounted) return;
-
-      if (role == 'donor') {
-        Navigator.pushReplacementNamed(context, '/donor-home');
-      } else if (role == 'ngo') {
-        Navigator.pushReplacementNamed(context, '/ngo-home');
-      } else {
-        Navigator.pushReplacementNamed(context, '/role-select');
-      }
+      Navigator.pushReplacementNamed(context, '/volunteer-home');
     } catch (e) {
       print('Login error: $e'); // Debug log
       
@@ -101,7 +91,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Icon(
-                      Icons.volunteer_activism,
+                      Icons.delivery_dining,
                       size: 56,
                       color: Color(0xFF4CAF50),
                     ),
@@ -109,13 +99,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Welcome Back',
+                  'Volunteer Login',
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Sign in to continue',
+                  'Sign in to start delivering',
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
