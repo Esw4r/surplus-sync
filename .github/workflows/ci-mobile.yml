@@ -1,0 +1,52 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app:
+          - mobile
+          - mobile-volunteer
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Install pub dependencies
+        run: |
+          cd ${{ matrix.app }}
+          flutter pub get
+
+      - name: Analyze
+        run: |
+          cd ${{ matrix.app }}
+          flutter analyze
+
+      - name: Run tests
+        run: |
+          cd ${{ matrix.app }}
+          flutter test --no-pub --coverage
+
+      # Optionally build APK/IPA if you want to produce artifacts
+      - name: Build APK
+        run: |
+          cd ${{ matrix.app }}/android
+          ./gradlew assembleDebug
+        if: matrix.app == 'mobile' # only build for main app for now
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-coverage
+          path: ${{ matrix.app }}/coverage

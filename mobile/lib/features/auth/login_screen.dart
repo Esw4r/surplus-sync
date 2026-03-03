@@ -49,8 +49,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (role == 'donor') {
         Navigator.pushReplacementNamed(context, '/donor-home');
-      } else if (role == 'volunteer') {
-        Navigator.pushReplacementNamed(context, '/volunteer-home');
       } else if (role == 'ngo') {
         Navigator.pushReplacementNamed(context, '/ngo-home');
       } else {

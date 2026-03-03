@@ -8,7 +8,6 @@ import 'features/auth/role_selector_screen.dart';
 import 'features/donor/donor_home_screen.dart';
 
 import 'features/ngo/ngo_home_screen.dart';
-import 'features/volunteer/volunteer_home_screen.dart';
 import 'services/api_service.dart';
 
 void main() {
@@ -61,7 +60,6 @@ class FoodRescueApp extends StatelessWidget {
         '/donor-home': (context) => const DonorHomeScreen(),
 
         '/ngo-home': (context) => const NgoHomeScreen(),
-        '/volunteer-home': (context) => const VolunteerHomeScreen(),
       },
     );
   }
@@ -101,8 +99,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         
         if (role == 'donor') {
           Navigator.pushReplacementNamed(context, '/donor-home');
-        } else if (role == 'volunteer') {
-          Navigator.pushReplacementNamed(context, '/volunteer-home');
         } else if (role == 'ngo') {
           Navigator.pushReplacementNamed(context, '/ngo-home');
         } else {

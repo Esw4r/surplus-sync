@@ -119,6 +119,7 @@ class ApiService {
             name: string;
             email: string;
             role: string;
+            verification_status?: string;
         }>(API_ENDPOINTS.me);
     }
 

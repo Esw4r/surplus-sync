@@ -230,22 +230,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _RoleCard(
-                        icon: Icons.delivery_dining,
-                        title: 'Deliver',
-                        subtitle: 'As a Volunteer',
-                        isSelected: _selectedRole == 'volunteer',
-                        onTap: () => setState(() => _selectedRole = 'volunteer'),
+                        icon: Icons.business,
+                        title: 'Rescue Food',
+                        subtitle: 'As an NGO',
+                        isSelected: _selectedRole == 'ngo',
+                        onTap: () => setState(() => _selectedRole = 'ngo'),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                _RoleCard(
-                  icon: Icons.business,
-                  title: 'Rescue Food',
-                  subtitle: 'As an NGO',
-                  isSelected: _selectedRole == 'ngo',
-                  onTap: () => setState(() => _selectedRole = 'ngo'),
                 ),
                 const SizedBox(height: 32),
 
