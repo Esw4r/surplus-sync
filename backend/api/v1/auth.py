@@ -12,6 +12,9 @@ from utils.spatial import create_point
 from utils.serialize import serialize_user
 from config import settings
 
+import logging
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
@@ -24,6 +27,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     # Check if user exists by email
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
+        logger.error(f"Registration failed: Email {user_data.email} already registered")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
@@ -33,6 +37,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     if user_data.phone_number:
         existing_phone = db.query(User).filter(User.phone_number == user_data.phone_number).first()
         if existing_phone:
+            logger.error(f"Registration failed: Phone {user_data.phone_number} already registered")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Phone number already registered"
@@ -94,7 +99,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
              new_ngo = NGO(
                  user_id=new_user.id,
                  organization_name=new_user.full_name,
-                 license_number=f"PENDING-{clerk_id[:8]}", # Unique placeholder
+                 license_number=f"PENDING-{generate_qr_token(12)}", # More unique placeholder
                  address=user_data.address or "Please update address",
                  location=create_point(lat, lng),
                  capacity_kg=100,
@@ -116,7 +121,9 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email or phone number already registered"
             )
-        print(f"Registration Error: {e}") # Log error
+        import traceback
+        logger.error(f"Registration Error: {e}")
+        logger.error(traceback.format_exc())
         raise
     
     return new_user
