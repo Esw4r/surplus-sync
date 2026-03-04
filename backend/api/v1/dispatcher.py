@@ -8,7 +8,10 @@ from models import (
 )
 from schemas import TaskAssignRequest
 from utils.auth import get_current_user
-from utils.serialize import serialize_task, serialize_list, serialize_ngo, serialize_donor
+from utils.serialize import (
+    serialize_task, serialize_list, serialize_ngo,
+    serialize_donor, serialize_volunteer
+)
 from utils.socket_manager import socket_manager
 from datetime import datetime
 
@@ -165,3 +168,71 @@ async def get_dispatcher_stats(
         "online_volunteers": online_volunteers,
         "total_volunteers": total_volunteers
     }
+
+
+# ==========================================================================
+# Volunteer Approval Endpoints
+# ==========================================================================
+
+@router.get("/volunteers/pending")
+async def get_pending_volunteers(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all volunteers pending ID verification"""
+    verify_dispatcher_access(current_user)
+
+    volunteers = db.query(Volunteer).filter(
+        Volunteer.id_verified == False  # noqa: E712
+    ).order_by(Volunteer.created_at.desc()).all()
+
+    return serialize_list(volunteers, serialize_volunteer)
+
+
+@router.patch("/volunteers/{volunteer_id}/approve")
+async def approve_volunteer(
+    volunteer_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Approve a volunteer's ID verification"""
+    verify_dispatcher_access(current_user)
+
+    volunteer = db.query(Volunteer).filter(
+        Volunteer.id == volunteer_id
+    ).first()
+    if not volunteer:
+        raise HTTPException(status_code=404, detail="Volunteer not found")
+
+    volunteer.id_verified = True
+    volunteer.verified_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(volunteer)
+
+    return serialize_volunteer(volunteer)
+
+
+@router.patch("/volunteers/{volunteer_id}/reject")
+async def reject_volunteer(
+    volunteer_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Reject a volunteer application — deactivates the user account"""
+    verify_dispatcher_access(current_user)
+
+    volunteer = db.query(Volunteer).filter(
+        Volunteer.id == volunteer_id
+    ).first()
+    if not volunteer:
+        raise HTTPException(status_code=404, detail="Volunteer not found")
+
+    # Deactivate the user account
+    user = db.query(User).filter(User.id == volunteer.user_id).first()
+    if user:
+        user.is_active = False
+
+    db.commit()
+
+    return {"message": "Volunteer application rejected", "id": volunteer_id}

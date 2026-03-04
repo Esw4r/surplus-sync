@@ -40,6 +40,9 @@ export const API_ENDPOINTS = {
     dispatcherStats: "/api/v1/dispatcher/stats",
     dispatcherNgos: "/api/v1/dispatcher/ngos",
     dispatcherDonors: "/api/v1/dispatcher/donors",
+    dispatcherPendingVolunteers: "/api/v1/dispatcher/volunteers/pending",
+    dispatcherApproveVolunteer: (id: string) => `/api/v1/dispatcher/volunteers/${id}/approve`,
+    dispatcherRejectVolunteer: (id: string) => `/api/v1/dispatcher/volunteers/${id}/reject`,
 
     // Admin
     adminUsers: "/api/v1/admin/users",

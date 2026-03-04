@@ -238,6 +238,22 @@ class ApiService {
         return this.request<any[]>(API_ENDPOINTS.dispatcherDonors);
     }
 
+    async getPendingVolunteers() {
+        return this.request<any[]>(API_ENDPOINTS.dispatcherPendingVolunteers);
+    }
+
+    async approveVolunteer(id: string) {
+        return this.request(API_ENDPOINTS.dispatcherApproveVolunteer(id), {
+            method: "PATCH",
+        });
+    }
+
+    async rejectVolunteer(id: string) {
+        return this.request(API_ENDPOINTS.dispatcherRejectVolunteer(id), {
+            method: "PATCH",
+        });
+    }
+
     // Admin
     async getAdminUsers() {
         return this.request<any[]>(API_ENDPOINTS.adminUsers);

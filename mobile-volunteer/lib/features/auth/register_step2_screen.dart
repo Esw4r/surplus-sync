@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,9 +19,9 @@ class RegisterStep2Screen extends ConsumerStatefulWidget {
 class _RegisterStep2ScreenState extends ConsumerState<RegisterStep2Screen> {
   final ImagePicker _picker = ImagePicker();
 
-  File? _drivingLicense;
-  File? _vehicleRC;
-  File? _passportPhoto;
+  XFile? _drivingLicense;
+  XFile? _vehicleRC;
+  XFile? _passportPhoto;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -96,13 +97,13 @@ class _RegisterStep2ScreenState extends ConsumerState<RegisterStep2Screen> {
     setState(() {
       switch (docType) {
         case 'license':
-          _drivingLicense = File(picked.path);
+          _drivingLicense = picked;
           break;
         case 'rc':
-          _vehicleRC = File(picked.path);
+          _vehicleRC = picked;
           break;
         case 'photo':
-          _passportPhoto = File(picked.path);
+          _passportPhoto = picked;
           break;
       }
     });
@@ -312,7 +313,7 @@ class _RegisterStep2ScreenState extends ConsumerState<RegisterStep2Screen> {
     required String title,
     required String subtitle,
     required IconData icon,
-    required File? file,
+    required XFile? file,
     required bool isRequired,
     required VoidCallback onTap,
     required VoidCallback onClear,
@@ -345,12 +346,19 @@ class _RegisterStep2ScreenState extends ConsumerState<RegisterStep2Screen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: hasFile
-                  ? Image.file(
-                      file!,
-                      width: 72,
-                      height: 72,
-                      fit: BoxFit.cover,
-                    )
+                  ? (kIsWeb
+                      ? Image.network(
+                          file!.path,
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.file(
+                          File(file!.path),
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                        ))
                   : Container(
                       width: 72,
                       height: 72,
