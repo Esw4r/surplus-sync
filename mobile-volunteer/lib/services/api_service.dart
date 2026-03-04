@@ -70,14 +70,22 @@ class ApiService {
     required String fullName,
     required String phoneNumber,
     required String role,
+    String? city,
+    String? vehicleType,
+    String? aadhaarNumber,
   }) async {
-    final response = await _dio.post('/auth/register', data: {
+    final data = {
       'email': email,
       'full_name': fullName,
       'phone_number': phoneNumber,
       'role': role.toUpperCase(), // Backend expects uppercase: VOLUNTEER
       'clerk_user_id': 'mobile_${email.replaceAll('@', '_').replaceAll('.', '_')}', // Generate simple ID for test mode
-    });
+    };
+    if (city != null) data['city'] = city;
+    if (vehicleType != null) data['vehicle_type'] = vehicleType;
+    if (aadhaarNumber != null) data['aadhaar_number'] = aadhaarNumber;
+
+    final response = await _dio.post('/auth/register', data: data);
     return response.data;
   }
 
