@@ -22,7 +22,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: testpassword
-          POSTGRES_DB: testdb
+          POSTGRES_DB: foodrescue_unified_db
         ports:
           - 5432:5432
         options: >-
@@ -77,13 +77,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-          psql -h localhost -U postgres -d testdb -f database/schema.sql
+          psql -h localhost -U postgres -d foodrescue_unified_db -f database/schema.sql
 
       - name: Run backend tests
         working-directory: backend
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
-          DATABASE_URL: "postgresql+psycopg://postgres:testpassword@localhost:5432/testdb"
+          DATABASE_URL: "postgresql+psycopg://postgres:testpassword@localhost:5432/foodrescue_unified_db"
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           CORS_ORIGINS: "http://localhost:3000"
         run: |
