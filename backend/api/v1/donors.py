@@ -65,10 +65,9 @@ async def update_my_donor_profile(
 
     if donor_data.latitude is not None and donor_data.longitude is not None:
         print(
-            f"[DONOR UPDATE] Updating location for {
-                donor.organization_name}: ({
-                donor_data.latitude}, {
-                donor_data.longitude})")
+            f"[DONOR UPDATE] Updating location for {donor.organization_name}: "
+            f"({donor_data.latitude}, {donor_data.longitude})"
+        )
         donor.location = create_point(donor_data.latitude, donor_data.longitude)
 
     db.commit()
