@@ -2,24 +2,25 @@
 from sqlalchemy import create_engine, text
 from config import settings
 
+
 def add_dispatcher_enum():
     engine = create_engine(settings.DATABASE_URL)
-    
+
     with engine.connect() as conn:
         print("Checking user_role enum...")
-        
+
         # Check if user_role type exists
         result = conn.execute(text(
             "SELECT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'user_role')"
         ))
         exists = result.scalar()
-        
+
         if not exists:
             print("❌ user_role enum type NOT found!")
             return
-            
+
         print("✅ user_role enum found.")
-        
+
         # Add DISPATCHER value
         try:
             print("Adding 'DISPATCHER' to user_role enum...")
@@ -32,8 +33,9 @@ def add_dispatcher_enum():
             print(f"⚠️ Result: {e}")
             # If strictly duplicate, it's fine.
             if "already exists" in str(e) or "duplicate" in str(e):
-                 print("   (Value likely already exists, which is fine)")
+                print("   (Value likely already exists, which is fine)")
             conn.rollback()
+
 
 if __name__ == "__main__":
     add_dispatcher_enum()

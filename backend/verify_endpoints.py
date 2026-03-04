@@ -17,31 +17,26 @@ results = []
 passed = 0
 failed = 0
 
+
 def log_result(method, endpoint, status_code, expected=200, details=""):
     global passed, failed
     success = status_code == expected
     if success:
         passed += 1
-        results.append(f"✅ {method:6} {endpoint}: {status_code}")
+        results.append(f"\u2705 {method:6} {endpoint}: {status_code}")
     else:
         failed += 1
-        try:
-            error_detail = results.append(f"❌ {method:6} {endpoint}: {status_code} (expected {expected})")
-            print(f"   >>> RESPONSE: {r.text[:200]}") # Print first 200 chars of error
-        except:
-            pass
-        results.append(f"❌ {method:6} {endpoint}: {status_code} (expected {expected}) {details[:50]}")
+        results.append(f"\u274c {method:6} {endpoint}: {status_code} (expected {expected}) {details[:50]}")
     return success
 
 
 def test_all_endpoints():
-    global passed, failed
     unique_id = uuid.uuid4().hex[:8]
-    
-    print("\n" + "="*70)
+
+    print("\n" + "=" * 70)
     print("COMPREHENSIVE API VERIFICATION - All Endpoints with Real Data")
-    print("="*70)
-    
+    print("=" * 70)
+
     # =========================================================================
     # 1. ROOT ENDPOINTS
     # =========================================================================
@@ -50,12 +45,12 @@ def test_all_endpoints():
     log_result("GET", "/", r.status_code)
     r = client.get("/health")
     log_result("GET", "/health", r.status_code)
-    
+
     # =========================================================================
     # 2. AUTH ENDPOINTS - Create users for each role
     # =========================================================================
     print("[2/8] Testing Auth Endpoints & Creating Users...")
-    
+
     # Create DONOR user
     donor_email = f"donor_{unique_id}@test.com"
     r = client.post("/api/v1/auth/register", json={
@@ -67,7 +62,7 @@ def test_all_endpoints():
     log_result("POST", "/auth/login", r.status_code)
     donor_token = r.json().get("access_token", "")
     donor_headers = {"Authorization": f"Bearer {donor_token}"}
-    
+
     # Create NGO user
     ngo_email = f"ngo_{unique_id}@test.com"
     client.post("/api/v1/auth/register", json={
@@ -77,7 +72,7 @@ def test_all_endpoints():
     ngo_login = client.post("/api/v1/auth/login", data={"username": ngo_email, "password": "testpass123"})
     ngo_token = ngo_login.json().get("access_token", "")
     ngo_headers = {"Authorization": f"Bearer {ngo_token}"}
-    
+
     # Create VOLUNTEER user
     volunteer_email = f"volunteer_{unique_id}@test.com"
     client.post("/api/v1/auth/register", json={
@@ -87,7 +82,7 @@ def test_all_endpoints():
     volunteer_login = client.post("/api/v1/auth/login", data={"username": volunteer_email, "password": "testpass123"})
     volunteer_token = volunteer_login.json().get("access_token", "")
     volunteer_headers = {"Authorization": f"Bearer {volunteer_token}"}
-    
+
     # Create ADMIN user
     admin_email = f"admin_{unique_id}@test.com"
     client.post("/api/v1/auth/register", json={
@@ -97,10 +92,10 @@ def test_all_endpoints():
     admin_login = client.post("/api/v1/auth/login", data={"username": admin_email, "password": "testpass123"})
     admin_token = admin_login.json().get("access_token", "")
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
-    
+
     r = client.get("/api/v1/auth/me", headers=donor_headers)
     log_result("GET", "/auth/me", r.status_code)
-    
+
     # =========================================================================
     # 3. DONOR ENDPOINTS
     # =========================================================================
@@ -115,17 +110,17 @@ def test_all_endpoints():
     })
     log_result("PATCH", "/donors/me (update)", r.status_code)
     donor_id = r.json().get("id", "")
-    
+
     r = client.get("/api/v1/donors/", headers=admin_headers)
     log_result("GET", "/donors/", r.status_code)
     # r = client.get("/api/v1/donors/me", headers=donor_headers) # Already tested via PATCH response
     # log_result("GET", "/donors/me", r.status_code)
-    
+
     r = client.get(f"/api/v1/donors/{donor_id}", headers=admin_headers)
     log_result("GET", "/donors/{id}", r.status_code)
     r = client.get("/api/v1/donors/tasks", headers=donor_headers)
     log_result("GET", "/donors/tasks", r.status_code)
-    
+
     # =========================================================================
     # 4. NGO ENDPOINTS
     # =========================================================================
@@ -137,7 +132,7 @@ def test_all_endpoints():
     })
     log_result("PATCH", "/ngos/me (update)", r.status_code)
     ngo_id = r.json().get("id", "")
-    
+
     r = client.get("/api/v1/ngos/", headers=admin_headers)
     log_result("GET", "/ngos/", r.status_code)
     r = client.get("/api/v1/ngos/me", headers=ngo_headers)
@@ -150,7 +145,7 @@ def test_all_endpoints():
     log_result("GET", "/ngos/nearby-tasks", r.status_code)
     r = client.get("/api/v1/ngos/tasks", headers=ngo_headers)
     log_result("GET", "/ngos/tasks", r.status_code)
-    
+
     # =========================================================================
     # 5. VOLUNTEER ENDPOINTS
     # =========================================================================
@@ -161,14 +156,20 @@ def test_all_endpoints():
     })
     log_result("PATCH", "/volunteers/me (update)", r.status_code)
     volunteer_id = r.json().get("id", "")
-    
+
     r = client.get("/api/v1/volunteers/", headers=admin_headers)
     log_result("GET", "/volunteers/", r.status_code)
     r = client.get("/api/v1/volunteers/me", headers=volunteer_headers)
     log_result("GET", "/volunteers/me", r.status_code)
     r = client.get(f"/api/v1/volunteers/{volunteer_id}", headers=admin_headers)
     log_result("GET", "/volunteers/{id}", r.status_code)
-    r = client.patch("/api/v1/volunteers/location", headers=volunteer_headers, json={"latitude": 40.7150, "longitude": -74.0050})
+    r = client.patch(
+        "/api/v1/volunteers/location",
+        headers=volunteer_headers,
+        json={
+            "latitude": 40.7150,
+            "longitude": -
+            74.0050})
     log_result("PATCH", "/volunteers/location", r.status_code)
     r = client.patch("/api/v1/volunteers/status", headers=volunteer_headers, json={"status": "ONLINE"})
     log_result("PATCH", "/volunteers/status", r.status_code)
@@ -178,12 +179,12 @@ def test_all_endpoints():
     log_result("GET", "/volunteers/task-history", r.status_code)
     r = client.post("/api/v1/volunteers/go-offline", headers=volunteer_headers)
     log_result("POST", "/volunteers/go-offline", r.status_code)
-    
+
     # =========================================================================
     # 6. TASK ENDPOINTS - Test Manual Assignment Flow
     # =========================================================================
     print("[6/8] Testing Task Endpoints (Full Workflow)...")
-    
+
     # Step 1: Create task FIRST (volunteer is OFFLINE so no auto-assign)
     r = client.post("/api/v1/donors/tasks", headers=donor_headers, json={
         "pickup_lat": 40.7128, "pickup_lng": -74.0060, "drop_lat": 40.7200, "drop_lng": -74.0100,
@@ -192,45 +193,53 @@ def test_all_endpoints():
     })
     log_result("POST", "/donors/tasks (create)", r.status_code)
     task_id = r.json().get("id", "") if r.status_code == 200 else ""
-    
+
     r = client.get("/api/v1/tasks/", headers=admin_headers)
     log_result("GET", "/tasks/", r.status_code)
-    
+
     if task_id:
         # Step 2: Get task details
         r = client.get(f"/api/v1/tasks/{task_id}", headers=admin_headers)
         log_result("GET", "/tasks/{id}", r.status_code)
-        
+
         # Step 3: Volunteer goes online AFTER task is created (so no auto-assign happened)
         r = client.post("/api/v1/volunteers/go-online?latitude=40.715&longitude=-74.005", headers=volunteer_headers)
         log_result("POST", "/volunteers/go-online", r.status_code)
-        
+
         # Step 4: Admin assigns volunteer to the pending task
         r = client.post(f"/api/v1/tasks/{task_id}/assign/{volunteer_id}", headers=admin_headers)
         log_result("POST", "/tasks/{id}/assign/{vid}", r.status_code)
-        
+
         # Step 5: Volunteer accepts the task
         r = client.post(f"/api/v1/tasks/{task_id}/accept", headers=volunteer_headers)
         log_result("POST", "/tasks/{id}/accept", r.status_code)
-        
+
         # Step 6: Get tokens from task for verification
         r = client.get(f"/api/v1/tasks/{task_id}", headers=volunteer_headers)
         task_data = r.json() if r.status_code == 200 else {}
         pickup_token = task_data.get("pickup_token", "")
         delivery_token = task_data.get("delivery_token", "")
-        
+
         # Step 7: Verify pickup with correct token
-        r = client.post(f"/api/v1/tasks/{task_id}/pickup-verify", headers=volunteer_headers, json={"token": pickup_token})
+        r = client.post(
+            f"/api/v1/tasks/{task_id}/pickup-verify",
+            headers=volunteer_headers,
+            json={
+                "token": pickup_token})
         log_result("POST", "/tasks/{id}/pickup-verify", r.status_code)
-        
+
         # Step 8: Verify delivery with correct token
-        r = client.post(f"/api/v1/tasks/{task_id}/delivery-verify", headers=volunteer_headers, json={"token": delivery_token})
+        r = client.post(
+            f"/api/v1/tasks/{task_id}/delivery-verify",
+            headers=volunteer_headers,
+            json={
+                "token": delivery_token})
         log_result("POST", "/tasks/{id}/delivery-verify", r.status_code)
-    
+
     # Test auto-assign (separate context)
     r = client.post("/api/v1/tasks/auto-assign", headers=admin_headers)
     log_result("POST", "/tasks/auto-assign", r.status_code)
-    
+
     # Now test NGO claim with a NEW task
     r = client.post("/api/v1/donors/tasks", headers=donor_headers, json={
         "pickup_lat": 40.7130, "pickup_lng": -74.0062, "drop_lat": 40.7202, "drop_lng": -74.0102,
@@ -241,7 +250,7 @@ def test_all_endpoints():
     if task2_id:
         r = client.post(f"/api/v1/ngos/tasks/{task2_id}/claim", headers=ngo_headers)
         log_result("POST", "/ngos/tasks/{id}/claim", r.status_code)
-    
+
     # =========================================================================
     # 7. ADMIN ENDPOINTS
     # =========================================================================
@@ -251,21 +260,26 @@ def test_all_endpoints():
     if volunteer_id:
         r = client.get(f"/api/v1/admin/stats/volunteer/{volunteer_id}", headers=admin_headers)
         log_result("GET", "/admin/stats/volunteer/{id}", r.status_code)
-    
+
     # =========================================================================
     # 8. RATINGS ENDPOINTS
     # =========================================================================
     print("[8/8] Testing Ratings Endpoints...")
     # Rate the first task (which should be DELIVERED now)
     if task_id:
-        r = client.post(f"/api/v1/ratings/tasks/{task_id}/rate", headers=donor_headers, json={"rating": 4.5, "feedback": "Great delivery!"})
+        r = client.post(
+            f"/api/v1/ratings/tasks/{task_id}/rate",
+            headers=donor_headers,
+            json={
+                "rating": 4.5,
+                "feedback": "Great delivery!"})
         log_result("POST", "/ratings/tasks/{id}/rate", r.status_code)
     if volunteer_id:
         r = client.get(f"/api/v1/ratings/volunteers/{volunteer_id}/ratings", headers=admin_headers)
         log_result("GET", "/ratings/volunteers/{id}/ratings", r.status_code)
         r = client.get(f"/api/v1/ratings/volunteers/{volunteer_id}/summary", headers=admin_headers)
         log_result("GET", "/ratings/volunteers/{id}/summary", r.status_code)
-    
+
     # =========================================================================
     # 9. DISPATCHER ENDPOINTS
     # =========================================================================
@@ -283,29 +297,30 @@ def test_all_endpoints():
 
     r = client.get("/api/v1/dispatcher/tasks", headers=dispatcher_headers)
     log_result("GET", "/dispatcher/tasks", r.status_code)
-    
+
     r = client.get("/api/v1/dispatcher/stats", headers=dispatcher_headers)
     log_result("GET", "/dispatcher/stats", r.status_code)
-    
+
     # =========================================================================
     # FINAL RESULTS
     # =========================================================================
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("DETAILED RESULTS")
-    print("="*70)
+    print("=" * 70)
     for result in results:
         print(f"  {result}")
-    
-    print("\n" + "="*70)
+
+    print("\n" + "=" * 70)
     print(f"SUMMARY: {passed} passed, {failed} failed out of {passed + failed} tests")
-    print("="*70)
-    
+    print("=" * 70)
+
     if failed == 0:
         print("🎉 ALL ENDPOINTS RETURNED 200 OK!")
     else:
         print(f"⚠️  {failed} endpoint(s) did not return 200 OK")
-    
+
     return failed == 0
+
 
 if __name__ == "__main__":
     success = test_all_endpoints()

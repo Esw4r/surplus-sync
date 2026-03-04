@@ -2,9 +2,12 @@
 Test configuration and fixtures for API endpoint testing.
 Uses proper transaction isolation to prevent test interference.
 """
+from models import User, UserRole
+from database import get_db
+from main import app
 import pytest
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 import os
 import uuid
@@ -14,9 +17,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import app and database
-from main import app
-from database import Base, get_db
-from models import User, UserRole, Donor, NGO, Volunteer, Task, TaskStatus, VolunteerStatus, VerificationStatus
 
 # Use the actual PostgreSQL database from .env
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -35,17 +35,17 @@ def db():
     connection = engine.connect()
     transaction = connection.begin()
     session = TestingSessionLocal(bind=connection)
-    
+
     # Begin a nested transaction (SAVEPOINT)
     nested = connection.begin_nested()
-    
+
     # Restart SAVEPOINT when it's released (committed or rolled back)
     @event.listens_for(session, "after_transaction_end")
     def restart_savepoint(s, tx):
         nonlocal nested
         if tx.nested and not tx._parent.nested:
             nested = connection.begin_nested()
-    
+
     try:
         yield session
     finally:
@@ -169,8 +169,11 @@ def volunteer_headers(test_volunteer_user):
     """Generate auth headers for volunteer user"""
     from utils.auth import create_access_token
     access_token = create_access_token(
-        data={"sub": test_volunteer_user.email, "user_id": str(test_volunteer_user.id), "role": test_volunteer_user.role.value}
-    )
+        data={
+            "sub": test_volunteer_user.email,
+            "user_id": str(
+                test_volunteer_user.id),
+            "role": test_volunteer_user.role.value})
     return {"Authorization": f"Bearer {access_token}"}
 
 

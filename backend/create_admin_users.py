@@ -7,15 +7,13 @@ Run this to set up control center access.
 Usage:
     python create_admin_users.py
 """
-import sys
-from sqlalchemy import select
 from database import SessionLocal
 from models import User
-from utils.auth import get_password_hash
+
 
 def create_admin_dispatcher():
     """Create admin and dispatcher users if they don't exist"""
-    
+
     users_to_create = [
         {
             "email": "admin@foodrescue.com",
@@ -25,24 +23,24 @@ def create_admin_dispatcher():
             "clerk_user_id": "admin_system"
         },
         {
-            "email": "dispatcher@foodrescue.com", 
+            "email": "dispatcher@foodrescue.com",
             "full_name": "Central Dispatcher",
             "phone_number": "+1234567891",
             "role": "DISPATCHER",
             "clerk_user_id": "dispatcher_central"
         }
     ]
-    
+
     session = SessionLocal()
     try:
         for user_data in users_to_create:
             # Check if user already exists
             existing_user = session.query(User).filter(User.email == user_data["email"]).first()
-            
+
             if existing_user:
                 print(f"✓ {user_data['role']} user already exists: {user_data['email']}")
                 continue
-            
+
             # Create new user
             new_user = User(
                 email=user_data["email"],
@@ -53,21 +51,21 @@ def create_admin_dispatcher():
                 # hashed_password removed: User model does not store password in local test mode
                 # is_verified removed: User model does not have this field
             )
-            
+
             session.add(new_user)
             session.commit()
-            
+
             print(f"✅ Created {user_data['role']} user: {user_data['email']}")
-            print(f"   Password: admin123 (CHANGE THIS AFTER FIRST LOGIN!)")
+            print("   Password: admin123 (CHANGE THIS AFTER FIRST LOGIN!)")
     except Exception as e:
         print(f"Error creating users: {e}")
         session.rollback()
     finally:
         session.close()
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("ADMIN & DISPATCHER USERS CREATED")
-    print("="*60)
+    print("=" * 60)
     print("\nLogin Credentials:")
     print("-" * 60)
     print("Admin:")
@@ -78,8 +76,9 @@ def create_admin_dispatcher():
     print("  Password: admin123")
     print("-" * 60)
     print("\n⚠️  IMPORTANT: Change these passwords after first login!")
-    print(f"Web Dashboard: http://localhost:3000/login")
-    print("="*60)
+    print("Web Dashboard: http://localhost:3000/login")
+    print("=" * 60)
+
 
 if __name__ == "__main__":
     print("Creating Admin and Dispatcher users...")

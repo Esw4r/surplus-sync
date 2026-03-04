@@ -1,6 +1,6 @@
 from database import SessionLocal
-from database import SessionLocal
 from models import User, NGO
+
 
 def dump_users():
     session = SessionLocal()
@@ -15,7 +15,7 @@ def dump_users():
             print(f"   Active: {user.is_active}")
         else:
             print(f"❌ User NOT FOUND: {email}")
-            
+
         # Also check dispatcher
         email = "dispatcher@foodrescue.com"
         user = session.query(User).filter(User.email == email).first()
@@ -35,6 +35,7 @@ def dump_users():
         print(f"Error reading users: {e}")
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     dump_users()

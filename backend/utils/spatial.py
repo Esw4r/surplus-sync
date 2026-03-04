@@ -1,6 +1,4 @@
-from sqlalchemy import text, func
 from sqlalchemy.orm import Session
-from geoalchemy2.functions import ST_Distance, ST_SetSRID, ST_MakePoint, ST_DWithin
 from geoalchemy2.elements import WKTElement
 
 
@@ -20,21 +18,21 @@ def extract_coordinates(geometry) -> tuple[float, float]:
 
 
 def find_nearby_volunteers(
-    db: Session, 
-    pickup_lat: float, 
-    pickup_lng: float, 
+    db: Session,
+    pickup_lat: float,
+    pickup_lng: float,
     max_distance_km: float = 10
 ):
     """Find volunteers within distance using direct ORM query"""
     from models import Volunteer, VolunteerStatus
-    
+
     # Get all online volunteers
     volunteers = db.query(Volunteer).filter(
         Volunteer.status == VolunteerStatus.ONLINE,
-        Volunteer.current_task_id == None,
-        Volunteer.current_location != None
+        Volunteer.current_task_id is None,
+        Volunteer.current_location is not None
     ).all()
-    
+
     # Filter by distance using Python
     nearby_volunteers = []
     for volunteer in volunteers:
@@ -43,7 +41,7 @@ def find_nearby_volunteers(
             distance = calculate_distance_km(pickup_lat, pickup_lng, vol_lat, vol_lng)
             if distance <= max_distance_km:
                 nearby_volunteers.append(volunteer)
-    
+
     return nearby_volunteers
 
 
@@ -55,13 +53,13 @@ def find_nearby_tasks(
 ):
     """Find available tasks within distance using direct ORM query"""
     from models import Task, TaskStatus
-    
+
     # Get all pending tasks without NGO assigned
     tasks = db.query(Task).filter(
         Task.status == TaskStatus.PENDING,
-        Task.ngo_id == None
+        Task.ngo_id is None
     ).all()
-    
+
     # Filter by distance using Python (simpler, works without PostGIS functions)
     nearby_tasks = []
     for task in tasks:
@@ -71,19 +69,19 @@ def find_nearby_tasks(
                 distance = calculate_distance_km(ngo_lat, ngo_lng, task_lat, task_lng)
                 if distance <= max_distance_km:
                     nearby_tasks.append(task)
-    
+
     return nearby_tasks
 
 
 def calculate_distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Calculate distance between two points in kilometers"""
     from math import radians, cos, sin, asin, sqrt
-    
+
     # Haversine formula
     lon1, lat1, lon2, lat2 = map(radians, [lng1, lat1, lng2, lat2])
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
     c = 2 * asin(sqrt(a))
     km = 6371 * c
     return round(km, 2)

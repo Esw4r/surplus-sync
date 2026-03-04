@@ -1,5 +1,4 @@
 # Script to add reverse geocoding to NGO profile update
-import re
 
 file_path = r'c:\Users\sister\Documents\SE-VOLUNTEER\final\mobile\lib\features\ngo\ngo_profile_screen.dart'
 
@@ -24,7 +23,7 @@ new_code = '''      if (position != null) {
           );
           if (placemarks.isNotEmpty) {
             final place = placemarks.first;
-            address = '${place.street ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}'.replaceAll(', ,', ',').trim();
+            address = '${place.street ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}'.replaceAll(', ,', ',').trim();  # noqa: E501
             if (address.startsWith(',')) address = address.substring(1).trim();
             if (address.endsWith(',')) address = address.substring(0, address.length - 1).trim();
           }
@@ -47,8 +46,8 @@ content = content.replace(
     "content: Text('Location and address updated!\\n$address'),"
 )
 content = content.replace(
-    "const SnackBar(\n              content: Text('Location updated successfully!'),\n              backgroundColor: Colors.green,\n            ),",
-    "SnackBar(\n              content: Text('Location and address updated!\\n$address'),\n              backgroundColor: Colors.green,\n              duration: const Duration(seconds: 3),\n            ),"
+    "const SnackBar(\n              content: Text('Location updated successfully!'),\n              backgroundColor: Colors.green,\n            ),",  # noqa: E501
+    "SnackBar(\n              content: Text('Location and address updated!\\n$address'),\n              backgroundColor: Colors.green,\n              duration: const Duration(seconds: 3),\n            ),"  # noqa: E501
 )
 
 with open(file_path, 'w', encoding='utf-8') as f:

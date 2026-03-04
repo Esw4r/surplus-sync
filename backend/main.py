@@ -1,8 +1,7 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-from database import engine, Base
 from config import settings
 from api.v1 import auth, donors, ngos, volunteers, tasks, admin, ratings, dispatcher
 from utils.redis_manager import redis_manager
@@ -25,10 +24,10 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
     logger.info("🚀 Starting Unified Food Rescue Backend...")
-    
+
     # Tables already created via schema.sql in Supabase
     logger.info("✅ Connected to Supabase database")
-    
+
     # Connect to Redis
     try:
         await redis_manager.connect()
@@ -36,12 +35,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Redis connection failed: {e}")
         logger.warning("⚠️ Continuing without Redis (real-time caching disabled)")
-    
+
     logger.info("✅ WebSocket server ready")
     logger.info("✅ All systems operational - server ready!")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("🛑 Shutting down application...")
     await redis_manager.disconnect()
@@ -75,6 +74,7 @@ app.include_router(admin.router, prefix="/api/v1")
 app.include_router(ratings.router, prefix="/api/v1")
 app.include_router(dispatcher.router, prefix="/api/v1")
 
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -84,12 +84,13 @@ async def root():
         "docs": "/docs"
     }
 
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     redis_status = "connected" if redis_manager.redis_client else "disconnected"
     websocket_status = f"{len(socket_manager.get_connected_volunteers())} volunteers online"
-    
+
     return {
         "status": "healthy",
         "database": "connected",
@@ -111,10 +112,10 @@ if __name__ == "__main__":
     try:
         logger.info("=" * 60)
         logger.info("🎯 Starting Unified Food Rescue Platform")
-        logger.info(f"📍 Environment: Production" if not settings.DEBUG else "📍 Environment: Development")
-        logger.info(f"📡 API Server: http://localhost:8000")
-        logger.info(f"📚 API Docs: http://localhost:8000/docs")
-        logger.info(f"🔌 WebSocket: ws://localhost:8000/socket.io")
+        logger.info("📍 Environment: Production" if not settings.DEBUG else "📍 Environment: Development")
+        logger.info("📡 API Server: http://localhost:8000")
+        logger.info("📚 API Docs: http://localhost:8000/docs")
+        logger.info("🔌 WebSocket: ws://localhost:8000/socket.io")
         logger.info("=" * 60)
         uvicorn.run(
             "main:app",
@@ -128,4 +129,3 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
         input("Press Enter to exit...")
-

@@ -7,10 +7,11 @@ import datetime
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 def create_ngo_user():
     db = SessionLocal()
     email = "hope@foundation.org"
-    
+
     # Check if user exists
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
@@ -18,11 +19,11 @@ def create_ngo_user():
         return
 
     print(f"Creating user {email}...")
-    
+
     # Create User
     new_user = User(
         id=uuid.uuid4(),
-        clerk_user_id=f"test_ngo_{uuid.uuid4().hex[:8]}", # Fake clerk ID
+        clerk_user_id=f"test_ngo_{uuid.uuid4().hex[:8]}",  # Fake clerk ID
         email=email,
         full_name="Hope Foundation",
         role=UserRole.NGO,
@@ -32,7 +33,7 @@ def create_ngo_user():
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     # Create NGO Profile
     print("Creating NGO profile...")
     new_ngo = NGO(
@@ -41,7 +42,7 @@ def create_ngo_user():
         organization_name="Hope Foundation",
         license_number=f"LIC-{uuid.uuid4().hex[:8]}",
         address="123 Charity Lane, Cityville",
-        location=create_point(12.9716, 77.5946), # Bangalore coordinates
+        location=create_point(12.9716, 77.5946),  # Bangalore coordinates
         qr_token=f"ngo-qr-{uuid.uuid4().hex[:8]}",
         created_at=datetime.datetime.utcnow(),
         preferred_food_types=[FoodType.VEG, FoodType.NON_VEG],
@@ -53,6 +54,7 @@ def create_ngo_user():
     db.add(new_ngo)
     db.commit()
     print(f"Successfully created NGO user: {email} / password123 (implicit, mock login)")
+
 
 if __name__ == "__main__":
     create_ngo_user()

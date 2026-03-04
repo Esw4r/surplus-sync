@@ -8,10 +8,7 @@ NOTE: Some tests accept a range of status codes because:
 3. Permission checks (403)
 4. Schema validation (422)
 """
-import pytest
-from fastapi.testclient import TestClient
 import uuid
-from datetime import datetime, timedelta
 
 
 # Valid response codes - endpoint is functioning even if returning errors
@@ -59,7 +56,7 @@ def test_auth_login(client):
     """Test user login returns access token"""
     unique_id = uuid.uuid4().hex[:8]
     email = f"loginuser_{unique_id}@example.com"
-    
+
     # Register first
     reg_response = client.post("/api/v1/auth/register", json={
         "email": email,
@@ -69,7 +66,7 @@ def test_auth_login(client):
         "clerk_user_id": f"clerk_{unique_id}"
     })
     assert reg_response.status_code == 200
-    
+
     # Login
     response = client.post("/api/v1/auth/login", data={
         "username": email,
@@ -120,7 +117,7 @@ def test_get_my_donor_profile(client, auth_headers):
         "latitude": 40.7128,
         "longitude": -74.0060
     })
-    
+
     response = client.get("/api/v1/donors/me", headers=auth_headers)
     assert response.status_code in VALID_RESPONSES
 
@@ -140,7 +137,7 @@ def test_get_donor_tasks(client, auth_headers):
         "latitude": 40.7128,
         "longitude": -74.0060
     })
-    
+
     response = client.get("/api/v1/donors/tasks", headers=auth_headers)
     assert response.status_code in VALID_RESPONSES
 
@@ -179,7 +176,7 @@ def test_get_my_ngo_profile(client, ngo_headers):
         "longitude": -74.0100,
         "capacity_kg": 200
     })
-    
+
     response = client.get("/api/v1/ngos/me", headers=ngo_headers)
     assert response.status_code in VALID_RESPONSES
 
@@ -242,7 +239,7 @@ def test_get_my_volunteer_profile(client, volunteer_headers):
         "vehicle_plate": "ABC-123",
         "capacity_kg": 50
     })
-    
+
     response = client.get("/api/v1/volunteers/me", headers=volunteer_headers)
     assert response.status_code in VALID_RESPONSES
 
@@ -261,7 +258,7 @@ def test_update_volunteer_location(client, volunteer_headers):
         "vehicle_type": "BIKE",
         "capacity_kg": 10
     })
-    
+
     response = client.patch("/api/v1/volunteers/location", headers=volunteer_headers, json={
         "latitude": 40.7150,
         "longitude": -74.0050
@@ -277,7 +274,7 @@ def test_update_volunteer_status(client, volunteer_headers):
         "vehicle_type": "BIKE",
         "capacity_kg": 10
     })
-    
+
     response = client.patch("/api/v1/volunteers/status", headers=volunteer_headers, json={
         "status": "ONLINE"
     })
@@ -304,7 +301,7 @@ def test_volunteer_go_online(client, volunteer_headers):
         "vehicle_type": "BIKE",
         "capacity_kg": 10
     })
-    
+
     response = client.post("/api/v1/volunteers/go-online?latitude=40.715&longitude=-74.005", headers=volunteer_headers)
     assert response.status_code in VALID_RESPONSES
 

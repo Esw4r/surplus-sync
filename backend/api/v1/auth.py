@@ -5,8 +5,8 @@ from sqlalchemy import func
 from datetime import timedelta
 from database import get_db
 from models import User, UserRole, Donor, Volunteer, NGO, VehicleType, VolunteerStatus, VerificationStatus
-from schemas import UserCreate, UserResponse, Token, LoginRequest
-from utils.auth import get_password_hash, verify_password, create_access_token, get_current_user
+from schemas import UserCreate, UserResponse, Token
+from utils.auth import create_access_token, get_current_user
 from utils.qr_generator import generate_qr_token, generate_pickup_delivery_tokens
 from utils.spatial import create_point
 from utils.serialize import serialize_user
@@ -32,7 +32,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
+
     # Check if phone number exists
     if user_data.phone_number:
         existing_phone = db.query(User).filter(User.phone_number == user_data.phone_number).first()
@@ -42,10 +42,10 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Phone number already registered"
             )
-    
+
     # Create user (Password is handled by Clerk, we just store the record)
     clerk_id = user_data.clerk_user_id or f"user_{generate_qr_token(16)}"
-    
+
     new_user = User(
         clerk_user_id=clerk_id,
         email=user_data.email,
@@ -54,7 +54,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         role=user_data.role,
         is_active=True
     )
-    
+
     # Geocode address or use provided lat/lng
     lat, lng = 0.0, 0.0
     if user_data.latitude is not None and user_data.longitude is not None:
@@ -62,29 +62,29 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     elif user_data.address:
         from utils.geocoding import geocode_address
         lat, lng = await geocode_address(user_data.address)
-    
+
     try:
         db.add(new_user)
-        db.flush() # Flush to get new_user.id
-        
+        db.flush()  # Flush to get new_user.id
+
         # Auto-create profile based on role
         if new_user.role == UserRole.DONOR:
-             pickup_token, _ = generate_pickup_delivery_tokens()
-             new_donor = Donor(
-                 user_id=new_user.id,
-                 organization_name=new_user.full_name, # Default to name
-                 address=user_data.address or "Please update address",
-                 location=create_point(lat, lng),
-                 qr_token=pickup_token,
-                 rating=5.0,
-                 total_donations=0
-             )
-             db.add(new_donor)
-             
+            pickup_token, _ = generate_pickup_delivery_tokens()
+            new_donor = Donor(
+                user_id=new_user.id,
+                organization_name=new_user.full_name,  # Default to name
+                address=user_data.address or "Please update address",
+                location=create_point(lat, lng),
+                qr_token=pickup_token,
+                rating=5.0,
+                total_donations=0
+            )
+            db.add(new_donor)
+
         elif new_user.role == UserRole.VOLUNTEER:
             new_volunteer = Volunteer(
                 user_id=new_user.id,
-                vehicle_type=VehicleType.BIKE, # Default
+                vehicle_type=VehicleType.BIKE,  # Default
                 vehicle_plate="UPDATE_ME",
                 capacity_kg=20,
                 status=VolunteerStatus.OFFLINE,
@@ -93,23 +93,23 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
                 on_time_percentage=100.0
             )
             db.add(new_volunteer)
-            
+
         elif new_user.role == UserRole.NGO:
-             pickup_token, _ = generate_pickup_delivery_tokens()
-             new_ngo = NGO(
-                 user_id=new_user.id,
-                 organization_name=new_user.full_name,
-                 license_number=f"PENDING-{generate_qr_token(12)}", # More unique placeholder
-                 address=user_data.address or "Please update address",
-                 location=create_point(lat, lng),
-                 capacity_kg=100,
-                 current_stock_kg=0,
-                 qr_token=pickup_token,
-                 rating=5.0,
-                 # Auto-verify if in dev mode or handle via admin
-                 verification_status=VerificationStatus.PENDING 
-             )
-             db.add(new_ngo)
+            pickup_token, _ = generate_pickup_delivery_tokens()
+            new_ngo = NGO(
+                user_id=new_user.id,
+                organization_name=new_user.full_name,
+                license_number=f"PENDING-{generate_qr_token(12)}",  # More unique placeholder
+                address=user_data.address or "Please update address",
+                location=create_point(lat, lng),
+                capacity_kg=100,
+                current_stock_kg=0,
+                qr_token=pickup_token,
+                rating=5.0,
+                # Auto-verify if in dev mode or handle via admin
+                verification_status=VerificationStatus.PENDING
+            )
+            db.add(new_ngo)
 
         db.commit()
         db.refresh(new_user)
@@ -125,7 +125,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         logger.error(f"Registration Error: {e}")
         logger.error(traceback.format_exc())
         raise
-    
+
     return new_user
 
 
@@ -143,26 +143,26 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
     # Case-insensitive email check
     user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username)).first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email"
         )
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is suspended"
         )
-    
+
     # Create access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email, "user_id": str(user.id), "role": user.role},
         expires_delta=access_token_expires
     )
-    
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -173,7 +173,7 @@ async def get_current_user_profile(
 ):
     """Get current user profile with role-specific data"""
     user_data = serialize_user(current_user)
-    
+
     # Add NGO-specific fields
     if current_user.role == UserRole.NGO:
         ngo = db.query(NGO).filter(NGO.user_id == current_user.id).first()
@@ -181,6 +181,5 @@ async def get_current_user_profile(
             user_data["verification_status"] = ngo.verification_status.value if ngo.verification_status else "PENDING"
             user_data["ngo_id"] = str(ngo.id)
             user_data["rejection_reason"] = ngo.rejection_reason
-    
-    return user_data
 
+    return user_data

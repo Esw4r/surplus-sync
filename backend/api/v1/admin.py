@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
-from typing import Dict, Any
+from sqlalchemy import func
 from database import get_db
 from models import User, Volunteer, NGO, Donor, Task, TaskStatus, VolunteerStatus, VerificationStatus
 from utils.auth import get_current_user
@@ -33,7 +32,7 @@ async def get_all_users(
     query = db.query(User)
     if role:
         query = query.filter(User.role == role)
-    
+
     users = query.offset(skip).limit(limit).all()
     from utils.serialize import serialize_user, serialize_list
     return serialize_list(users, serialize_user)
@@ -49,7 +48,7 @@ async def get_admin_ngos(
     query = db.query(NGO)
     if verification_status:
         query = query.filter(NGO.verification_status == verification_status)
-    
+
     ngos = query.all()
     from utils.serialize import serialize_ngo, serialize_list
     return serialize_list(ngos, serialize_ngo)
@@ -78,12 +77,12 @@ async def approve_ngo(
     ngo = db.query(NGO).filter(NGO.id == ngo_id).first()
     if not ngo:
         raise HTTPException(status_code=404, detail="NGO not found")
-    
+
     ngo.verification_status = VerificationStatus.VERIFIED
     ngo.verified_at = datetime.utcnow()
     db.commit()
     db.refresh(ngo)
-    
+
     # Broadcast NGO approval to admin dashboards
     from utils.socket_manager import socket_manager
     from utils.serialize import serialize_ngo
@@ -91,7 +90,7 @@ async def approve_ngo(
         "event": "ngo_approved",
         "ngo": serialize_ngo(ngo)
     })
-    
+
     return {"message": f"NGO {ngo.organization_name} approved"}
 
 
@@ -105,7 +104,7 @@ async def reject_ngo(
     ngo = db.query(NGO).filter(NGO.id == ngo_id).first()
     if not ngo:
         raise HTTPException(status_code=404, detail="NGO not found")
-    
+
     ngo.verification_status = VerificationStatus.REJECTED
     ngo.verified_at = None
     db.commit()
@@ -127,7 +126,7 @@ async def reject_ngo_with_reason(
     ngo = db.query(NGO).filter(NGO.id == ngo_id).first()
     if not ngo:
         raise HTTPException(status_code=404, detail="NGO not found")
-    
+
     ngo.verification_status = VerificationStatus.REJECTED
     ngo.verified_at = None
     ngo.rejection_reason = body.reason
@@ -144,11 +143,11 @@ async def get_expiring_ngos(
     """Get NGOs with licenses expiring within specified days"""
     threshold = date.today() + timedelta(days=days)
     expiring_ngos = db.query(NGO).filter(
-        NGO.license_expiry != None,
+        NGO.license_expiry is not None,
         NGO.license_expiry <= threshold,
         NGO.verification_status == VerificationStatus.VERIFIED
     ).all()
-    
+
     from utils.serialize import serialize_ngo, serialize_list
     return serialize_list(expiring_ngos, serialize_ngo)
 
@@ -159,14 +158,14 @@ async def get_system_overview(
     current_user: User = Depends(get_current_user)
 ):
     """Get system-wide statistics (admin dashboard)"""
-    
+
     # Total counts
     total_users = db.query(func.count(User.id)).scalar()
     total_volunteers = db.query(func.count(Volunteer.id)).scalar()
     total_ngos = db.query(func.count(NGO.id)).scalar()
     total_donors = db.query(func.count(Donor.id)).scalar()
     total_tasks = db.query(func.count(Task.id)).scalar()
-    
+
     # Volunteer status breakdown
     volunteers_online = db.query(func.count(Volunteer.id)).filter(
         Volunteer.status == VolunteerStatus.ONLINE
@@ -177,7 +176,7 @@ async def get_system_overview(
     volunteers_offline = db.query(func.count(Volunteer.id)).filter(
         Volunteer.status == VolunteerStatus.OFFLINE
     ).scalar()
-    
+
     # NGO verification status
     ngos_pending = db.query(func.count(NGO.id)).filter(
         NGO.verification_status == VerificationStatus.PENDING
@@ -188,7 +187,7 @@ async def get_system_overview(
     ngos_rejected = db.query(func.count(NGO.id)).filter(
         NGO.verification_status == VerificationStatus.REJECTED
     ).scalar()
-    
+
     # Task status breakdown
     tasks_pending = db.query(func.count(Task.id)).filter(
         Task.status == TaskStatus.PENDING
@@ -205,7 +204,7 @@ async def get_system_overview(
     tasks_cancelled = db.query(func.count(Task.id)).filter(
         Task.status == TaskStatus.CANCELLED
     ).scalar()
-    
+
     # Recent activity (last 7 days)
     week_ago = datetime.utcnow() - timedelta(days=7)
     tasks_this_week = db.query(func.count(Task.id)).filter(
@@ -217,12 +216,12 @@ async def get_system_overview(
     total_weight = db.query(func.sum(Task.quantity_kg)).filter(
         Task.status.in_([TaskStatus.DELIVERED, TaskStatus.COMPLETED])
     ).scalar() or 0.0
-    
+
     # CO2 saved factor: approx 2.5kg CO2e per kg of food waste prevented
     co2_saved = float(total_weight) * 2.5
-    
+
     print(f"DEBUG STATS: Users={total_users}, NGOs={total_ngos}, Weight={total_weight}, CO2={co2_saved}")
-    
+
     return {
         "users": {
             "total": total_users,
@@ -264,43 +263,43 @@ async def get_volunteer_stats(
     current_user: User = Depends(get_current_user)
 ):
     """Get performance statistics for specific volunteer"""
-    
+
     volunteer = db.query(Volunteer).filter(Volunteer.id == volunteer_id).first()
     if not volunteer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Volunteer not found"
         )
-    
+
     # Task counts
     total_tasks = db.query(func.count(Task.id)).filter(
         Task.volunteer_id == volunteer_id
     ).scalar()
-    
+
     completed_tasks = db.query(func.count(Task.id)).filter(
         Task.volunteer_id == volunteer_id,
         Task.status == TaskStatus.DELIVERED
     ).scalar()
-    
+
     cancelled_tasks = db.query(func.count(Task.id)).filter(
         Task.volunteer_id == volunteer_id,
         Task.status == TaskStatus.CANCELLED
     ).scalar()
-    
+
     # Calculate average ratings from performance_stats table
     from models import PerformanceStat
     perf_stats = db.query(PerformanceStat).filter(
         PerformanceStat.volunteer_id == volunteer_id
     ).first()
-    
+
     avg_rating = perf_stats.average_rating if perf_stats else 0.0
-    
+
     # Current status
     current_task = db.query(Task).filter(
         Task.volunteer_id == volunteer_id,
         Task.status.in_([TaskStatus.ASSIGNED, TaskStatus.PICKED_UP, TaskStatus.IN_TRANSIT])
     ).first()
-    
+
     return {
         "volunteer_id": volunteer_id,
         "user": {

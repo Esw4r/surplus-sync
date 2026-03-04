@@ -2,7 +2,7 @@
 Serialization utilities for converting SQLAlchemy models to JSON-serializable dicts.
 Handles PostGIS Geometry fields by extracting lat/lng coordinates.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
@@ -38,7 +38,6 @@ def serialize_value(value: Any) -> Any:
     if isinstance(value, list):
         return [serialize_value(item) for item in value]
     return value
-
 
 
 def serialize_user(user) -> Dict:
@@ -85,21 +84,23 @@ def serialize_ngo(ngo) -> Dict:
     return {
         "id": str(ngo.id),
         "user_id": str(ngo.user_id),
-        "name": ngo.organization_name, # Frontend expects 'name'
+        "name": ngo.organization_name,  # Frontend expects 'name'
         "organization_name": ngo.organization_name,
         "email": ngo.user.email if ngo.user else None,
         "phone": ngo.user.phone_number if ngo.user else None,
         "license_number": ngo.license_number,
         "verification_status": ngo.verification_status.value if ngo.verification_status else "PENDING",
-        "approval_status": ngo.verification_status.value if ngo.verification_status else "PENDING", # Frontend expects 'approval_status'
-        "status": ngo.verification_status.value if ngo.verification_status else "PENDING", # Frontend expects 'status'
+        # Frontend expects 'approval_status'
+        "approval_status": ngo.verification_status.value if ngo.verification_status else "PENDING",
+        # Frontend expects 'status'
+        "status": ngo.verification_status.value if ngo.verification_status else "PENDING",
         "address": ngo.address,
         "latitude": lat,
         "longitude": lng,
         "capacity_kg": ngo.capacity_kg or 100,
-        "storage_capacity": ngo.capacity_kg or 100, # Frontend expects 'storage_capacity'
+        "storage_capacity": ngo.capacity_kg or 100,  # Frontend expects 'storage_capacity'
         "current_stock_kg": ngo.current_stock_kg or 0,
-        "total_stored": ngo.current_stock_kg or 0, # Frontend expects 'total_stored'
+        "total_stored": ngo.current_stock_kg or 0,  # Frontend expects 'total_stored'
         "qr_token": ngo.qr_token,
         "rating": float(ngo.rating) if ngo.rating else 5.0,
         "total_claims": ngo.total_claims or 0,

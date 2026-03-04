@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 from database import get_db
-from models import Volunteer, User, Task, TaskStatus, VolunteerStatus, TrackingSession
+from models import Volunteer, User, Task, VolunteerStatus, TrackingSession
 from schemas import (
-    VolunteerCreate, VolunteerUpdate, VolunteerResponse, VolunteerLocationUpdate,
-    VolunteerStatusUpdate, TaskResponse
+    VolunteerCreate, VolunteerUpdate, VolunteerLocationUpdate, VolunteerStatusUpdate
 )
 from utils.auth import get_current_user
-from utils.spatial import create_point, extract_coordinates
+from utils.spatial import create_point
 from utils.serialize import serialize_volunteer, serialize_task, serialize_list
 from utils.socket_manager import socket_manager
 from datetime import datetime
@@ -27,7 +26,7 @@ async def get_all_volunteers(
 ):
     """Get all volunteers (admin/dispatcher endpoint)"""
     query = db.query(Volunteer)
-    
+
     # Filter by status if provided
     if status_filter:
         try:
@@ -38,7 +37,7 @@ async def get_all_volunteers(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid status: {status_filter}"
             )
-    
+
     volunteers = query.offset(skip).limit(limit).all()
     return serialize_list(volunteers, serialize_volunteer)
 
@@ -73,14 +72,14 @@ async def update_my_volunteer_profile(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Volunteer profile not found"
         )
-    
+
     if vol_data.vehicle_type is not None:
         volunteer.vehicle_type = vol_data.vehicle_type
     if vol_data.vehicle_plate is not None:
         volunteer.vehicle_plate = vol_data.vehicle_plate
     if vol_data.capacity_kg is not None:
         volunteer.capacity_kg = vol_data.capacity_kg
-        
+
     db.commit()
     db.refresh(volunteer)
     return serialize_volunteer(volunteer)
@@ -98,10 +97,10 @@ async def get_current_task(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Volunteer profile not found"
         )
-    
+
     if not volunteer.current_task_id:
         return None
-    
+
     task = db.query(Task).filter(Task.id == volunteer.current_task_id).first()
     return serialize_task(task) if task else None
 
@@ -118,11 +117,11 @@ async def get_task_history(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Volunteer profile not found"
         )
-    
+
     tasks = db.query(Task).filter(
         Task.volunteer_id == volunteer.id
     ).order_by(Task.created_at.desc()).all()
-    
+
     return serialize_list(tasks, serialize_task)
 
 
@@ -140,7 +139,7 @@ async def create_volunteer(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Volunteer profile already exists"
         )
-    
+
     # Create volunteer
     new_volunteer = Volunteer(
         user_id=current_user.id,
@@ -149,11 +148,11 @@ async def create_volunteer(
         capacity_kg=volunteer_data.capacity_kg,
         status=VolunteerStatus.OFFLINE
     )
-    
+
     db.add(new_volunteer)
     db.commit()
     db.refresh(new_volunteer)
-    
+
     return serialize_volunteer(new_volunteer)
 
 
@@ -170,39 +169,39 @@ async def update_location(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Volunteer profile not found"
         )
-    
+
     # Update location
     new_location = create_point(location_data.latitude, location_data.longitude)
     volunteer.current_location = new_location
     volunteer.last_heartbeat = datetime.utcnow()
-    
+
     # If volunteer has active task, update tracking session
     if volunteer.current_task_id:
         tracking_session = db.query(TrackingSession).filter(
             TrackingSession.task_id == volunteer.current_task_id,
             TrackingSession.volunteer_id == volunteer.id,
-            TrackingSession.end_time == None
+            TrackingSession.end_time is None
         ).first()
-        
+
         if tracking_session:
             # Append new coordinate to path (store as JSON in route_polyline)
             current_path = []
             if tracking_session.route_polyline:
                 try:
                     current_path = json.loads(tracking_session.route_polyline)
-                except:
+                except BaseException:
                     current_path = []
-            
+
             current_path.append({
                 "lat": location_data.latitude,
                 "lng": location_data.longitude,
                 "timestamp": datetime.utcnow().isoformat()
             })
             tracking_session.route_polyline = json.dumps(current_path)
-    
+
     db.commit()
     db.refresh(volunteer)
-    
+
     return serialize_volunteer(volunteer)
 
 
@@ -219,32 +218,32 @@ async def update_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Volunteer profile not found"
         )
-    
+
     # Validate status transition
     if volunteer.status == VolunteerStatus.BUSY and status_data.status == VolunteerStatus.ONLINE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot go available while on task. Complete task first."
         )
-    
+
     # Update status
     volunteer.status = status_data.status
-    
+
     # If going offline, clear current location
     if status_data.status == VolunteerStatus.OFFLINE:
         volunteer.current_location = None
         volunteer.last_heartbeat = None
-    
+
     db.commit()
     db.refresh(volunteer)
 
     # Broadcast status change
     await socket_manager.broadcast_volunteer_status(
-        str(volunteer.id), 
-        volunteer.status.value, 
+        str(volunteer.id),
+        volunteer.status.value,
         volunteer.user.full_name
     )
-    
+
     return serialize_volunteer(volunteer)
 
 
@@ -262,22 +261,22 @@ async def go_online(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Volunteer profile not found"
         )
-    
+
     # Update status and location
     volunteer.status = VolunteerStatus.ONLINE
     volunteer.current_location = create_point(latitude, longitude)
     volunteer.last_heartbeat = datetime.utcnow()
-    
+
     db.commit()
     db.refresh(volunteer)
 
     # Broadcast status change (ONLINE)
     await socket_manager.broadcast_volunteer_status(
-        str(volunteer.id), 
-        "ONLINE", 
+        str(volunteer.id),
+        "ONLINE",
         volunteer.user.full_name
     )
-    
+
     return serialize_volunteer(volunteer)
 
 
@@ -293,28 +292,28 @@ async def go_offline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Volunteer profile not found"
         )
-    
+
     if volunteer.status == VolunteerStatus.BUSY:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot go offline while on task"
         )
-    
+
     # Update status
     volunteer.status = VolunteerStatus.OFFLINE
     volunteer.current_location = None
     volunteer.last_heartbeat = None
-    
+
     db.commit()
     db.refresh(volunteer)
 
     # Broadcast status change (OFFLINE)
     await socket_manager.broadcast_volunteer_status(
-        str(volunteer.id), 
-        "OFFLINE", 
+        str(volunteer.id),
+        "OFFLINE",
         volunteer.user.full_name
     )
-    
+
     return serialize_volunteer(volunteer)
 
 

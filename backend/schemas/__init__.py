@@ -2,8 +2,8 @@
 Pydantic schemas for SE-VOLUNTEER API.
 Includes validators for PostGIS Geometry field serialization.
 """
-from pydantic import BaseModel, EmailStr, Field, model_validator
-from typing import Optional, List, Any
+from pydantic import BaseModel, EmailStr, model_validator
+from typing import Optional, List
 from datetime import datetime, date
 from uuid import UUID
 from models import UserRole, FoodType, TaskStatus, VolunteerStatus, VehicleType, VerificationStatus
@@ -47,7 +47,7 @@ class UserResponse(UserBase):
     clerk_user_id: str
     is_active: bool
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -72,10 +72,10 @@ class DonorResponse(BaseModel):
     created_at: datetime
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    
+
     class Config:
         from_attributes = True
-    
+
     @model_validator(mode='before')
     @classmethod
     def extract_location(cls, values):
@@ -83,11 +83,11 @@ class DonorResponse(BaseModel):
         if hasattr(values, '__dict__'):
             # SQLAlchemy model object
             data = {}
-            for key in ['id', 'user_id', 'organization_name', 'address', 'qr_token', 
-                       'rating', 'total_donations', 'created_at', 'location']:
+            for key in ['id', 'user_id', 'organization_name', 'address', 'qr_token',
+                        'rating', 'total_donations', 'created_at', 'location']:
                 if hasattr(values, key):
                     data[key] = getattr(values, key)
-            
+
             if 'location' in data and data['location']:
                 lat, lng = extract_coords_from_geometry(data['location'])
                 data['latitude'] = lat
@@ -152,10 +152,10 @@ class NGOResponse(BaseModel):
     created_at: datetime
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    
+
     class Config:
         from_attributes = True
-    
+
     @model_validator(mode='before')
     @classmethod
     def extract_location(cls, values):
@@ -163,12 +163,12 @@ class NGOResponse(BaseModel):
         if hasattr(values, '__dict__'):
             data = {}
             for key in ['id', 'user_id', 'organization_name', 'license_number', 'verification_status',
-                       'address', 'capacity_kg', 'current_stock_kg', 'qr_token', 'rating', 
-                       'total_claims', 'license_expiry', 'license_document_url', 'rejection_reason',
-                       'verified_at', 'created_at', 'location', 'preferred_food_types']:
+                        'address', 'capacity_kg', 'current_stock_kg', 'qr_token', 'rating',
+                        'total_claims', 'license_expiry', 'license_document_url', 'rejection_reason',
+                        'verified_at', 'created_at', 'location', 'preferred_food_types']:
                 if hasattr(values, key):
                     data[key] = getattr(values, key)
-            
+
             if 'location' in data and data['location']:
                 lat, lng = extract_coords_from_geometry(data['location'])
                 data['latitude'] = lat
@@ -206,10 +206,10 @@ class VolunteerResponse(BaseModel):
     created_at: datetime
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    
+
     class Config:
         from_attributes = True
-    
+
     @model_validator(mode='before')
     @classmethod
     def extract_location(cls, values):
@@ -217,11 +217,11 @@ class VolunteerResponse(BaseModel):
         if hasattr(values, '__dict__'):
             data = {}
             for key in ['id', 'user_id', 'vehicle_type', 'vehicle_plate', 'capacity_kg',
-                       'status', 'current_task_id', 'id_verified', 'rating', 'total_deliveries',
-                       'on_time_percentage', 'created_at', 'current_location']:
+                        'status', 'current_task_id', 'id_verified', 'rating', 'total_deliveries',
+                        'on_time_percentage', 'created_at', 'current_location']:
                 if hasattr(values, key):
                     data[key] = getattr(values, key)
-            
+
             if 'current_location' in data and data['current_location']:
                 lat, lng = extract_coords_from_geometry(data['current_location'])
                 data['latitude'] = lat
@@ -253,7 +253,6 @@ class TaskCreate(BaseModel):
     expiry_time: datetime
 
 
-
 class TaskAssignRequest(BaseModel):
     volunteer_id: UUID
 
@@ -281,10 +280,10 @@ class TaskResponse(BaseModel):
     assigned_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
-    
+
     @model_validator(mode='before')
     @classmethod
     def extract_locations(cls, values):
@@ -292,22 +291,22 @@ class TaskResponse(BaseModel):
         if hasattr(values, '__dict__'):
             data = {}
             for key in ['id', 'donor_id', 'ngo_id', 'volunteer_id', 'distance_km', 'food_type',
-                       'quantity_kg', 'description', 'requires_cooling', 'expiry_time', 'status',
-                       'pickup_token', 'delivery_token', 'pickup_verified_at', 'delivery_verified_at',
-                       'assigned_at', 'completed_at', 'created_at', 'pickup_location', 'drop_location']:
+                        'quantity_kg', 'description', 'requires_cooling', 'expiry_time', 'status',
+                        'pickup_token', 'delivery_token', 'pickup_verified_at', 'delivery_verified_at',
+                        'assigned_at', 'completed_at', 'created_at', 'pickup_location', 'drop_location']:
                 if hasattr(values, key):
                     data[key] = getattr(values, key)
-            
+
             if 'pickup_location' in data and data['pickup_location']:
                 lat, lng = extract_coords_from_geometry(data['pickup_location'])
                 data['pickup_lat'] = lat
                 data['pickup_lng'] = lng
-            
+
             if 'drop_location' in data and data['drop_location']:
                 lat, lng = extract_coords_from_geometry(data['drop_location'])
                 data['drop_lat'] = lat
                 data['drop_lng'] = lng
-            
+
             return data
         return values
 
