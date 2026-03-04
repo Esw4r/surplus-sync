@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'features/auth/login_screen.dart';
-import 'features/auth/register_screen.dart';
+import 'features/auth/register_step1_screen.dart';
+import 'features/auth/register_step2_screen.dart';
 import 'features/volunteer/volunteer_home_screen.dart';
 import 'services/api_service.dart';
 
@@ -52,8 +53,17 @@ class VolunteerApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
+        '/register': (context) => const RegisterStep1Screen(),
         '/volunteer-home': (context) => const VolunteerHomeScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/register-step2') {
+          final args = settings.arguments as Map<String, String>;
+          return MaterialPageRoute(
+            builder: (context) => RegisterStep2Screen(step1Data: args),
+          );
+        }
+        return null;
       },
     );
   }
