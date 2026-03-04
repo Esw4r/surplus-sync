@@ -16,6 +16,20 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:15-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -57,11 +71,19 @@ jobs:
           pip install flake8
           flake8 backend --max-line-length=120 --exclude=backend/__pycache__
 
+      - name: Initialize Test Database
+        env:
+          PGPASSWORD: testpassword
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql -h localhost -U postgres -d testdb -f database/schema.sql
+
       - name: Run backend tests
         working-directory: backend
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: "postgresql+psycopg://postgres:testpassword@localhost:5432/testdb"
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           CORS_ORIGINS: "http://localhost:3000"
         run: |
