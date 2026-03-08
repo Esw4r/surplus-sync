@@ -5,8 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   // Using LAN IP for physical device testing
   // static const String baseUrl = 'http://localhost:8000/api/v1'; // Emulator only
-  static const String baseUrl = 'http://10.186.157.145:8000/api/v1'; // Physical Device LAN IP
-  
+  // Use the machine's current LAN IP so physical devices can reach the backend.
+  static const String baseUrl =
+      'http://10.214.97.83:8000/api/v1'; // Physical Device LAN IP (updated)
+
   late final Dio _dio;
   String? _authToken;
 
@@ -79,7 +81,8 @@ class ApiService {
       'full_name': fullName,
       'phone_number': phoneNumber,
       'role': role.toUpperCase(), // Backend expects uppercase: VOLUNTEER
-      'clerk_user_id': 'mobile_${email.replaceAll('@', '_').replaceAll('.', '_')}', // Generate simple ID for test mode
+      'clerk_user_id':
+          'mobile_${email.replaceAll('@', '_').replaceAll('.', '_')}', // Generate simple ID for test mode
     };
     if (city != null) data['city'] = city;
     if (vehicleType != null) data['vehicle_type'] = vehicleType;
@@ -94,7 +97,7 @@ class ApiService {
     final response = await _dio.post('/auth/login',
         data: {'username': email, 'password': password},
         options: Options(contentType: Headers.formUrlEncodedContentType));
-    
+
     if (response.data['access_token'] != null) {
       await setToken(response.data['access_token']);
     }
@@ -177,15 +180,18 @@ class ApiService {
   }
 
   /// Verify pickup with QR token
-  Future<Map<String, dynamic>> verifyPickup(String taskId, String qrToken) async {
+  Future<Map<String, dynamic>> verifyPickup(
+      String taskId, String qrToken) async {
     final response = await _dio.post('/tasks/$taskId/pickup-verify', data: {
-      'token': qrToken, // Backend expects 'token', not 'qr_token' in QRVerifyRequest
+      'token':
+          qrToken, // Backend expects 'token', not 'qr_token' in QRVerifyRequest
     });
     return response.data;
   }
 
   /// Verify delivery with QR token
-  Future<Map<String, dynamic>> verifyDelivery(String taskId, String qrToken) async {
+  Future<Map<String, dynamic>> verifyDelivery(
+      String taskId, String qrToken) async {
     final response = await _dio.post('/tasks/$taskId/delivery-verify', data: {
       'token': qrToken, // Backend expects 'token', not 'qr_token'
     });

@@ -77,7 +77,8 @@ class _RegisterStep2ScreenState extends ConsumerState<RegisterStep2Screen> {
                     color: const Color(0xFF2196F3).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.photo_library, color: Color(0xFF2196F3)),
+                  child:
+                      const Icon(Icons.photo_library, color: Color(0xFF2196F3)),
                 ),
                 title: const Text('Gallery'),
                 subtitle: const Text('Choose from gallery'),
@@ -112,7 +113,8 @@ class _RegisterStep2ScreenState extends ConsumerState<RegisterStep2Screen> {
   bool _validateDocuments() {
     if (_isMotorVehicle && _drivingLicense == null) {
       setState(() {
-        _errorMessage = 'Driving License is required for ${widget.step1Data['vehicle_type']}';
+        _errorMessage =
+            'Driving License is required for ${widget.step1Data['vehicle_type']}';
       });
       return false;
     }
@@ -153,13 +155,26 @@ class _RegisterStep2ScreenState extends ConsumerState<RegisterStep2Screen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration successful! Please login.'),
-          backgroundColor: Color(0xFF4CAF50),
-        ),
-      );
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      // After registering, attempt to log in (TEST_MODE allows token issuance without password)
+      final usedEmail = data['email']!.isNotEmpty
+          ? data['email']!
+          : '${data['phone_number']!.replaceAll('+', '')}@volunteer.local';
+
+      try {
+        await apiService.login(usedEmail, 'password');
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/waiting-approval');
+      } catch (e) {
+        // If login fails, fall back to login screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration successful! Please login.'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
     } catch (e) {
       String errorMsg = 'Registration failed. Please try again.';
       if (e is DioException && e.response != null) {
@@ -220,12 +235,14 @@ class _RegisterStep2ScreenState extends ConsumerState<RegisterStep2Screen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                      Icon(Icons.error_outline,
+                          color: Colors.red.shade700, size: 20),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: TextStyle(color: Colors.red.shade700, fontSize: 14),
+                          style: TextStyle(
+                              color: Colors.red.shade700, fontSize: 14),
                         ),
                       ),
                     ],

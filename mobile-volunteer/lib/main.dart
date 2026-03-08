@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/register_step1_screen.dart';
 import 'features/auth/register_step2_screen.dart';
+import 'features/auth/waiting_for_approval_screen.dart';
 import 'features/volunteer/volunteer_home_screen.dart';
 import 'services/api_service.dart';
 
@@ -46,7 +47,8 @@ class VolunteerApp extends StatelessWidget {
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
       initialRoute: '/',
@@ -54,6 +56,7 @@ class VolunteerApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterStep1Screen(),
+        '/waiting-approval': (context) => const WaitingForApprovalScreen(),
         '/volunteer-home': (context) => const VolunteerHomeScreen(),
       },
       onGenerateRoute: (settings) {
