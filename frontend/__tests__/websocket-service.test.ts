@@ -9,7 +9,6 @@ describe('WebSocketService', () => {
     const handler = jest.fn();
     const unsubscribe = wsService.subscribe('task_created', handler);
 
-    // @ts-expect-error testing private method via casting
     wsService['notifyHandlers']({
       type: 'task_created',
       payload: { id: '123' },
@@ -21,7 +20,6 @@ describe('WebSocketService', () => {
     unsubscribe();
 
     // Call again, handler should no longer be invoked
-    // @ts-expect-error testing private method via casting
     wsService['notifyHandlers']({
       type: 'task_created',
       payload: { id: '123' },
@@ -30,5 +28,5 @@ describe('WebSocketService', () => {
 
     expect(handler).toHaveBeenCalledTimes(1);
   });
-}
+});
 
