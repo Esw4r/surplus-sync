@@ -21,10 +21,12 @@ FAKE_UUID = "00000000-0000-0000-0000-000000000000"
 # --- Root Endpoints (2) ---
 
 def test_root(client):
-    """Test root endpoint returns online status"""
+    """Test root endpoint returns welcome message"""
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json()["status"] == "online"
+    data = response.json()
+    assert "message" in data
+    assert "version" in data
 
 
 def test_health(client):

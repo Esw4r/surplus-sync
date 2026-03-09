@@ -104,8 +104,11 @@ os.makedirs(uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 
+# Expose the raw FastAPI instance for testing (before Socket.IO wrapping)
+fastapi_app = app
+
 # Mount Socket.IO (Must wrap FastAPI to handle paths correctly at root)
-app = socketio.ASGIApp(socket_manager.sio, app)
+app = socketio.ASGIApp(socket_manager.sio, fastapi_app)
 
 
 if __name__ == "__main__":

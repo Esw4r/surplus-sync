@@ -4,7 +4,7 @@ Uses proper transaction isolation to prevent test interference.
 """
 from models import User, UserRole
 from database import get_db
-from main import app
+from main import fastapi_app as app
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
