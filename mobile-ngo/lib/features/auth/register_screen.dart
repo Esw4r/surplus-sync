@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -320,7 +319,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       // Submit license details
       if (_licenseNumberController.text.isNotEmpty) {
         await apiService.submitNgoLicense(
-          licenseNumber: '${_selectedLicenseType}-${_licenseNumberController.text.trim()}',
+          licenseNumber: '$_selectedLicenseType-${_licenseNumberController.text.trim()}',
           licenseExpiry: _licenseExpiry?.toIso8601String() ?? '',
           licenseDocumentUrl: fileUrl,
         );
