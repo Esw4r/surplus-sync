@@ -12,10 +12,12 @@ on:
     branches: [main]
     paths:
       - "mobile-volunteer/**"
+      - ".github/workflows/mobile-volunteer.yml"
   pull_request:
     branches: [main]
     paths:
       - "mobile-volunteer/**"
+      - ".github/workflows/mobile-volunteer.yml"
 
 jobs:
   # --------------------------------------------------------------- analyze ---
