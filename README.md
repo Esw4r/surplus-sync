@@ -40,7 +40,7 @@ This project integrates **4 separate codebases** built by your team:
 ### Database Schema
 
 10 core tables:
-- `users` - Unified user accounts (Clerk integration)
+- `users` - Unified user accounts (Supabase postgreSQL integration)
 - `donors` - Donor profiles with location
 - `ngos` - NGO profiles with verification status
 - `ngo_branches` - NGO branch locations
