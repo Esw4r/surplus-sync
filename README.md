@@ -1,4 +1,4 @@
-# Unified Food Rescue Platform
+# Surplus-Sync : An Unified Food Rescue Platform
 
 > **Integration of 4 separate food rescue systems into a single unified backend**
 
